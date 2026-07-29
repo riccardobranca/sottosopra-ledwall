@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<title>Sottosopra — Ledwall · Ora di notte</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  /* «ORA DI NOTTE» — scena quieta per le ore tarde.
+     UNA sola idea: l'ORA VERA, enorme, distribuita edge-to-edge come un titolone
+     del brand. I due punti pulsano; quando scatta il minuto SOLO la cifra che
+     cambia davvero si ribalta (masked reveal: la nuova sale dal basso mentre la
+     vecchia esce in alto). Sotto, una frase giustificata che dipende dall'ora.
+
+     ⚠ Eccezione dichiarata alla regola 7 (loop chiuso): la scena mostra l'ora
+     reale, quindi il CONTENUTO non si ripete. Tutto ciò che è animato in
+     continuo — pulsazione dei due punti e respiro del blocco, in window.TL — è
+     invece un loop perfetto da 12s (ultimo frame ≡ primo).
+
+     Verifica: ?t=23:47 imposta l'ora di partenza · ?demo=1 fa correre il tempo
+     ×20 (un minuto ogni 3s) per vedere il ribaltamento delle cifre. */
+
+  .scene {
+    position: absolute; inset: 48px 34px 92px;
+    display: flex; flex-direction: column; justify-content: center;
+  }
+
+  /* riga dell'ora: 5 celle (4 cifre + due punti) edge-to-edge.
+     Celle a larghezza FISSA (max advance delle cifre, misurato dal JS): con la
+     larghezza naturale il glifo «1» è più stretto e a ogni scatto del minuto
+     l'intera riga si sarebbe riassestata. Corpo definitivo fissato dal JS. */
+  .clock { display: flex; justify-content: space-between; align-items: flex-start; }
+  .cell { position: relative; flex: none; height: 1em; overflow: hidden; }
+  .g {
+    position: absolute; left: 0; top: 0; width: 100%;
+    display: block; text-align: center; line-height: 1;
+  }
+
+  .phrase { margin-top: 56px; }
+
+  /* metro tipografico invisibile: misura i corpi al volo (corpo 100px) */
+  #probe {
+    position: absolute; left: -9999px; top: 0; visibility: hidden;
+    font-size: 100px; line-height: 1; white-space: nowrap; text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage">
+    <div class="scene">
+      <div class="clock" id="clock">
+        <div class="cell" data-d="0"><span class="g cur">0</span><span class="g inc">0</span></div>
+        <div class="cell" data-d="1"><span class="g cur">0</span><span class="g inc">0</span></div>
+        <div class="cell colon"><span class="g cg">:</span></div>
+        <div class="cell" data-d="2"><span class="g cur">0</span><span class="g inc">0</span></div>
+        <div class="cell" data-d="3"><span class="g cur">0</span><span class="g inc">0</span></div>
+      </div>
+      <div class="just phrase" id="phrase"></div>
+    </div>
+    <span id="probe" aria-hidden="true"></span>
+    <div class="meta"><span>Giardini del Castello</span><span>Sottosopra 2026</span></div>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script src="vendor/CustomEase.min.js"></script>
+<script src="_shared.js"></script>
+<script>
+LW.ready(function () {
+  var clock   = document.getElementById('clock');
+  var probe   = document.getElementById('probe');
+  var phrase  = document.getElementById('phrase');
+  var colonEl = document.querySelector('.colon');
+  var colonG  = colonEl.querySelector('.g');
+
+  var cells = [].slice.call(clock.querySelectorAll('.cell[data-d]')).map(function (el) {
+    return { el: el, cur: el.querySelector('.cur'), inc: el.querySelector('.inc'), ch: null };
+  });
+
+  /* ── misure ─────────────────────────────────────────────────────────────
+     getBoundingClientRect è scalato dall'anteprima: dividendo per stageScale
+     si torna sempre a px CSS dello stage 1034×689. */
+  function sc() { return LW.stageScale() || 1; }
+  function m100(txt) {                      /* larghezza in px CSS al corpo 100 */
+    probe.textContent = txt;
+    return probe.getBoundingClientRect().width / sc();
+  }
+
+  /* ── fit dell'ora: le cifre occupano l'80% della riga, il 20% è aria
+        distribuita nei 4 gap (space-between tiene le esterne a filo margine) ── */
+  var dw100 = 0;
+  for (var d = 0; d < 10; d++) dw100 = Math.max(dw100, m100(String(d)));
+  var cw100 = m100(':');
+  var contW = clock.getBoundingClientRect().width / sc();
+  var fs = Math.max(190, Math.min(300, 100 * 0.80 * contW / (4 * dw100 + cw100)));
+  clock.style.fontSize = fs.toFixed(1) + 'px';
+  cells.forEach(function (c) { c.el.style.width = (dw100 * fs / 100).toFixed(1) + 'px'; });
+  colonEl.style.width = (cw100 * fs / 100).toFixed(1) + 'px';
+
+  /* ── la frase dell'ora ──────────────────────────────────────────────── */
+  function phraseFor(h) {
+    if (h >= 1 && h < 6)  return 'ULTIMO GIRO';          /* dopo l'1 */
+    if (h >= 23 || h < 1) return 'LA NOTTE È GIOVANE';   /* 23 → 00 */
+    if (h >= 20)          return 'SIAMO NEL PIENO';      /* 20 → 22 */
+    return 'LA SERATA COMINCIA ORA';                     /* prima delle 20 */
+  }
+
+  var curPhrase = null;
+  function setPhrase(txt, animate) {
+    if (txt === curPhrase) return;
+    curPhrase = txt;
+    phrase.setAttribute('data-text', txt);
+    phrase.setAttribute('aria-label', txt);
+
+    /* corpo: la frase compatta vale il 78% della riga → l'aria che resta
+       finisce nei gap tra le parole (modello poster). Le frasi corte pesano
+       di più, quelle lunghe restano sotto il corpo dell'ora. */
+    var pw = phrase.getBoundingClientRect().width / sc();
+    var pfs = Math.max(48, Math.min(116, 100 * 0.78 * pw / m100(txt)));
+    phrase.style.fontSize = pfs.toFixed(1) + 'px';
+
+    var lines = LW.justify(phrase);
+    var wds = [].slice.call(phrase.querySelectorAll('.wd'));
+    lines.forEach(function (ln) {
+      var dx = LW.packDeltas(ln);
+      [].slice.call(ln.children).forEach(function (wd, i) { wd._dx = dx[i]; });
+    });
+
+    gsap.set(wds, { x: function (i, t) { return t._dx || 0; } });
+    gsap.set(lines, { yPercent: animate ? 110 : 0 });
+    if (!animate) { gsap.set(wds, { x: 0 }); return; }
+
+    /* cambio d'ora: la riga sale dalla maschera, poi l'aria si apre */
+    var t = gsap.timeline();
+    t.to(lines, { yPercent: 0, duration: 0.9, ease: 'soso', stagger: 0.1 }, 0);
+    t.to(wds,   { x: 0, duration: 1.2, ease: 'expo.inOut', stagger: 0.014 }, 0.35);
+  }
+
+  /* ── ribaltamento di UNA cifra ──────────────────────────────────────── */
+  function swap(cell, ch, animate) {
+    if (cell.ch === ch) return;              /* si muove solo ciò che cambia */
+    cell.ch = ch;
+    if (!animate) { cell.cur.textContent = ch; cell.inc.textContent = ch; return; }
+
+    var cur = cell.cur, inc = cell.inc;
+    gsap.killTweensOf([cur, inc]);
+    inc.textContent = ch;
+    gsap.set(inc, { yPercent: 110 });
+    gsap.set(cur, { yPercent: 0 });
+    gsap.to(cur, { yPercent: -110, duration: 0.66, ease: 'power2.in' });
+    gsap.to(inc, { yPercent: 0, duration: 0.82, ease: 'soso', onComplete: function () {
+      /* la nuova cifra passa al livello stabile e il rullo torna in attesa
+         sotto la maschera (i due glifi sono sovrapposti: nessuno scatto) */
+      cur.textContent = ch;
+      gsap.set(cur, { yPercent: 0 });
+      gsap.set(inc, { yPercent: 110 });
+    }});
+  }
+
+  /* ── tempo (con override per la verifica) ───────────────────────────── */
+  var qt = location.search.match(/[?&]t=(\d{1,2})[:.](\d{2})/);
+  var demo = /[?&]demo=1/.test(location.search);
+  var offset = 0;
+  if (qt) {
+    var real = new Date();
+    var want = new Date(real.getTime());
+    want.setHours(parseInt(qt[1], 10) % 24, parseInt(qt[2], 10) % 60, real.getSeconds(), 0);
+    offset = want.getTime() - real.getTime();
+  }
+  var T0 = Date.now();
+  function nowT() {
+    var r = Date.now();
+    return new Date(demo ? T0 + offset + (r - T0) * 20 : r + offset);
+  }
+  function two(n) { return (n < 10 ? '0' : '') + n; }
+
+  /* ── stato iniziale: ora giusta già al primo frame ── */
+  var n0 = nowT();
+  var s0 = two(n0.getHours()) + two(n0.getMinutes());
+  cells.forEach(function (c, i) { swap(c, s0.charAt(i), false); });
+  setPhrase(phraseFor(n0.getHours()), false);
+
+  /* ── entrata (una sola volta, all'accensione): tutto sale dalle maschere ── */
+  var curs   = cells.map(function (c) { return c.cur; });
+  var incs   = cells.map(function (c) { return c.inc; });
+  var lines0 = [].slice.call(phrase.querySelectorAll('.ln'));
+  var wds0   = [].slice.call(phrase.querySelectorAll('.wd'));
+
+  /* Lo stato di RIPOSO è quello leggibile: gli elementi partono in posizione e
+     l'intro li nasconde solo quando parte davvero (set DENTRO la timeline).
+     Prima erano nascosti subito con gsap.set: se il browser strozza il rAF —
+     succede a una pagina in un iframe di sfondo, come nel player — l'intro non
+     parte mai e l'orologio resta fuori campo, cioè invisibile. */
+  gsap.set(incs, { yPercent: 110 });   /* il rullo in arrivo è nascosto per definizione */
+
+  var intro = gsap.timeline();
+  intro.set(curs,   { yPercent: 110 }, 0);
+  intro.set(colonG, { yPercent: 110 }, 0);
+  intro.set(lines0, { yPercent: 110 }, 0);
+  intro.set(wds0,   { x: function (i, t) { return t._dx || 0; } }, 0);
+  intro.to(curs,   { yPercent: 0, duration: 0.95, ease: 'soso', stagger: { each: 0.1, from: 'edges' } }, 0.2);
+  intro.to(colonG, { yPercent: 0, duration: 0.9,  ease: 'soso' }, 0.5);
+  intro.to(lines0, { yPercent: 0, duration: 0.9,  ease: 'soso' }, 0.7);
+  intro.to(wds0,   { x: 0, duration: 1.25, ease: 'expo.inOut', stagger: 0.014 }, 1.05);
+
+  /* Guardiano: se dopo 3s l'intro non è finita, il rAF è strozzato (succede a
+     una pagina in un iframe di sfondo) → si salta allo stato finale. Meglio
+     perdere l'entrata che lasciare l'orologio invisibile sul muro.
+     setTimeout continua a scattare anche quando requestAnimationFrame no. */
+  setTimeout(function () { if (intro.progress() < 1) intro.progress(1); }, 3000);
+
+  /* ── loop continuo (12s esatti, ultimo frame ≡ primo) ────────────────
+     1 · i due punti pulsano come un orologio digitale (12 mezze onde da 1s:
+         numero pari di iterazioni → si chiude sul valore di partenza)
+     2 · il blocco dell'ora respira: mai fermo del tutto, mai visibile come
+         movimento (0.012 su 300px = 3,6px in 6 secondi) */
+  var tl = gsap.timeline({ repeat: -1 });
+  tl.to(colonG, { opacity: 0.25,  duration: 1, ease: 'sine.inOut', yoyo: true, repeat: 11 }, 0);
+  tl.to(clock,  { scale: 1.012,   duration: 6, ease: 'sine.inOut', yoyo: true, repeat: 1  }, 0);
+  window.TL = tl;   /* per scrub/verifica deterministica */
+
+  /* ── il tempo che passa: solo la cifra che cambia si muove ── */
+  setInterval(function () {
+    var n = nowT();
+    var s = two(n.getHours()) + two(n.getMinutes());
+    cells.forEach(function (c, i) { swap(c, s.charAt(i), true); });
+    setPhrase(phraseFor(n.getHours()), true);
+  }, 250);
+});
+</script>
+</body>
+</html>

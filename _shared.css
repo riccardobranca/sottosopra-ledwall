@@ -1,0 +1,47 @@
+/* ── base condivisa scene ledwall Sottosopra — 1034×689 ── */
+@font-face {
+  font-family: 'SoSo26';
+  src: url('fonts/SoSo26.woff2') format('woff2'), url('fonts/SoSo26.woff') format('woff');
+  font-display: block;
+}
+
+:root {
+  --bg: #000;
+  --fg: #fff;
+  --muted: #8a8a8a;
+  --line: #2e2e2e;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { background: #000; height: 100%; overflow: hidden; }
+
+#wrap { position: fixed; inset: 0; display: grid; place-items: center; background: #000; }
+
+#stage {
+  width: 1034px; height: 689px;
+  background: var(--bg); color: var(--fg);
+  font-family: 'SoSo26', sans-serif;
+  font-feature-settings: "ss07", "ss08", "liga", "calt";
+  position: relative; overflow: hidden; flex-shrink: 0;
+}
+
+/* ── titoloni giustificati (motore del sito, modello poster) ── */
+.just { text-transform: uppercase; }
+.just .lnmask { display: block; overflow: hidden; }
+.just .ln { display: flex; justify-content: space-between; align-items: baseline; line-height: 1; }
+.just .ln .wd { white-space: nowrap; display: inline-block; }
+
+/* ── micro-label e meta (SoSo26 spaziato piccolo) ── */
+.label {
+  font-size: 15px; letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--muted);
+}
+.meta {
+  position: absolute; left: 34px; right: 34px; bottom: 26px;
+  display: flex; justify-content: space-between;
+  font-size: 15px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* regoli: MAI 1px sul ledwall (shimmer) */
+.rule { height: 2px; background: var(--line); }

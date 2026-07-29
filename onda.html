@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<title>Sottosopra — Ledwall · Onda di esse</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  /* UNA idea: un campo di S (il glifo-firma: SoSo26 le rende già rovesciate) e
+     un'ONDA che lo attraversa in diagonale capovolgendo una lettera dopo l'altra.
+     Il campo non entra e non esce: c'è sempre. Cambia solo il verso delle esse. */
+  #field {
+    position: absolute; inset: 36px 34px 92px;   /* 966 × 561 dentro lo stage 1034×689 */
+    display: grid;
+    grid-template-columns: repeat(11, 1fr);      /* passo colonna 87.8px */
+    grid-template-rows: repeat(7, 1fr);          /* passo riga     80.1px */
+    place-items: center;
+    line-height: 1;
+    text-transform: uppercase;
+    font-size: 74px;                 /* valore definitivo fissato dal JS (fit alla cella) */
+    /* la S si INCLINA come una tessera, non si schiaccia: la prospettiva è del
+       campo, così il punto di fuga è unico e le file lontane dal centro
+       si piegano un filo di più — è quello che rende la cosa un'onda. */
+    perspective: 2000px;
+    visibility: hidden;              /* svelato dal JS dopo il fit: niente flash di corpo sbagliato */
+  }
+  #field .s { display: block; line-height: 1; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage">
+    <div id="field"></div>
+    <div class="meta"><span>Sottosopra</span><span>Cambia il punto di vista</span></div>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script src="vendor/CustomEase.min.js"></script>
+<script src="_shared.js"></script>
+<script>
+LW.ready(function () {
+  var ROWS = 7, COLS = 11, N = ROWS * COLS;   /* 77 esse */
+  var field = document.getElementById('field');
+
+  /* ① il campo, in ordine riga-per-riga: è l'ordine che si aspetta lo stagger
+        `grid` di GSAP (grid:[righe, colonne] legge il DOM row-major). */
+  var html = '';
+  for (var i = 0; i < N; i++) html += '<span class="s">S</span>';
+  field.innerHTML = html;
+  var cells = [].slice.call(field.children);
+
+  /* ② fit tipografico: nessuna S deve toccare la vicina, nemmeno a metà giro.
+        Le metriche di SoSo26 non sono note a priori → si misura con una sonda
+        fuori flusso (posizionata: dentro una grid non altera le tracce).
+        Vincoli: larghezza ≤ 62% del passo colonna, altezza (line-height 1)
+        ≤ 92% del passo riga — il margine copre anche l'ingrandimento
+        prospettico del bordo vicino durante la rotazione (~2%). */
+  var sc = LW.stageScale() || 1;
+  var fr = field.getBoundingClientRect();
+  var colPitch = (fr.width  / sc) / COLS;
+  var rowPitch = (fr.height / sc) / ROWS;
+
+  var probe = document.createElement('span');
+  probe.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap;' +
+    'font:inherit;font-size:100px;line-height:1;text-transform:uppercase;';
+  probe.textContent = 'S';
+  field.appendChild(probe);
+  var w100 = probe.getBoundingClientRect().width / sc;
+  field.removeChild(probe);
+
+  var fs = Math.min(100 * (colPitch * 0.62) / (w100 || 62), rowPitch * 0.92);
+  fs = Math.max(48, Math.min(92, fs));
+  field.style.fontSize = fs.toFixed(1) + 'px';
+  field.style.visibility = 'visible';
+
+  /* ── timeline · 24.0s su griglia da 0.6s ──
+     4 passate da 6s. Ogni passata è un'onda che percorre la diagonale e lascia
+     dietro di sé il campo girato: 180° (tutte sottosopra) → 360° (tutte dritte)
+     → 540° → 720°. La rotazione prosegue SEMPRE nello stesso verso (mai un
+     ritorno all'indietro: sarebbe un rewind, non un'onda) e l'azzeramento a
+     720 ≡ 0 è invisibile.
+       0.6  onda da ALTO-SINISTRA  → il campo resta sottosopra
+       6.6  onda da BASSO-DESTRA   → e torna dritto
+      12.6  onda da ALTO-SINISTRA
+      18.6  onda da BASSO-DESTRA
+      22.2  reset (720 → 0, stesso fotogramma) · 22.2–24.0 tenuta, si riparte */
+  var T0 = 0.6, BAR = 6, DUR = 1.2, AMT = 2.2, LOOP = 24;
+  var PASSES = [
+    { from: 'start', rot: 180 },
+    { from: 'end',   rot: 360 },
+    { from: 'start', rot: 540 },
+    { from: 'end',   rot: 720 }
+  ];
+
+  var tl = gsap.timeline({ repeat: -1 });
+
+  tl.set(cells, { rotationX: 0 }, 0);                 /* stato certo a ogni giro */
+  tl.to({}, { duration: LOOP }, 0);                   /* ancora la durata esatta del ciclo */
+
+  /* il campo respira sempre, anche nelle tenute: 8 semiperiodi da 3s = 24s,
+     numero pari → all'ultimo fotogramma la scala è di nuovo 1 esatto */
+  tl.to(field, { scale: 1.008, duration: 3, ease: 'sine.inOut', yoyo: true, repeat: 7 }, 0);
+
+  /* l'onda. `amount` (NON `each`): con 77 elementi distribuisce l'INTERA cascata
+     in 2.2s — con `each` durerebbe minuti. La distanza è euclidea dall'origine
+     ('start' = fuori dall'angolo alto-sx, 'end' = fuori dal basso-dx) → il fronte
+     arriva come un arco diagonale. Moto in scena, quindi power2.inOut: simmetrico,
+     lento, senza scatti (l'alto contrasto B/N in moto veloce fa judder sul LED). */
+  PASSES.forEach(function (p, k) {
+    tl.to(cells, {
+      rotationX: p.rot,
+      duration: DUR,
+      ease: 'power2.inOut',
+      stagger: { grid: [ROWS, COLS], from: p.from, amount: AMT }
+    }, T0 + k * BAR);
+  });
+
+  /* ultima onda finita a 22.0 → l'azzeramento cade in tenuta, invisibile */
+  tl.set(cells, { rotationX: 0 }, 22.2);
+
+  window.TL = tl; /* per la verifica a scrub */
+});
+</script>
+</body>
+</html>

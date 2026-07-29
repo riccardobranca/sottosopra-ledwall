@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<title>Sottosopra — Ledwall · Istituzioni (ledger)</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  /* «ISTITUZIONI — LEDGER»
+     Le due istituzioni INSIEME, impaginate come il ledger del sito: regoli come
+     confini, dicitura ufficiale a sinistra, logo allineato al bordo destro.
+     Registro sobrio: un solo gesto (il ledger che si costruisce riga per riga)
+     e una tenuta molto lunga — la dicitura della Camera di commercio è lunga
+     e va letta con calma da 10-30 metri.
+     Le diciture sono riportate ALLA LETTERA (fonte: PartnerLedger del sito).
+     Misure verificate sulle metriche reali di SoSo26:
+       · titolo 76px su 966px → una riga (naturale 796px, l'aria va nei gap)
+       · dicitura Camera 19px/0.14em su max 580px → 3 righe (554/460/404px)
+       · logo Comune  414×240 @110px → 190px di larghezza
+       · logo Camera  720×139 @62px  → 321px di larghezza
+       · riga 2: 580 + 321 = 901 su 966 disponibili → nessuna sovrapposizione */
+
+  .ledger {
+    position: absolute; left: 34px; right: 34px; top: 84px;
+    opacity: 0;                 /* lo stato iniziale lo dà il JS: niente flash */
+  }
+
+  .head { margin-bottom: 58px; }
+  .ttl  { font-size: 76px; }
+
+  .row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 38px 0;
+  }
+
+  /* maschere dei reveal (yPercent 110 → 0) */
+  .rvl { overflow: hidden; }
+  .rvl.txt { max-width: 580px; }
+
+  /* la dicitura ufficiale: mai abbreviata, mai riscritta */
+  .dic {
+    font-size: 19px; letter-spacing: 0.14em; line-height: 1.45;
+    text-transform: uppercase; color: var(--muted);
+  }
+  .nb { white-space: nowrap; }   /* «Treviso-Belluno» non si spezza sul trattino */
+
+  .row img {
+    display: block;
+    filter: invert(1);           /* i loghi sono grigi su bianco → bianco su nero */
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage">
+
+    <div class="ledger">
+      <div class="head">
+        <div class="just ttl" data-text="Con il sostegno di">Con il sostegno di</div>
+      </div>
+
+      <div class="rule"></div>
+
+      <div class="row">
+        <div class="rvl txt"><p class="label dic">Con il Patrocinio di</p></div>
+        <div class="rvl"><img src="logos/citta-castelfranco.png" alt="Città di Castelfranco Veneto" style="height:110px"></div>
+      </div>
+
+      <div class="rule"></div>
+
+      <div class="row">
+        <div class="rvl txt"><p class="label dic">Progetto realizzato in collaborazione e con il contributo della Camera di commercio di <span class="nb">Treviso-Belluno</span></p></div>
+        <div class="rvl"><img src="logos/camera-commercio.png" alt="Camera di commercio di Treviso-Belluno" style="height:62px"></div>
+      </div>
+
+      <div class="rule"></div>
+    </div>
+
+    <div class="meta"><span>Sottosopra APS</span><span>Castelfranco Veneto</span></div>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script src="vendor/CustomEase.min.js"></script>
+<script src="_shared.js"></script>
+<script>
+/* ── guardiano ──────────────────────────────────────────────────────────────
+   Registrato PRIMA di tutto: se il rAF viene strozzato (o qualcosa a valle
+   fallisce) dopo 3s la scena si pianta sullo stato finale leggibile invece di
+   restare invisibile. Non dipende da LW né da GSAP. */
+function restStatic() {
+  var led = document.querySelector('.ledger');
+  if (!led) return;
+  var ttl = document.querySelector('.ttl');
+  if (ttl && !ttl.textContent.trim()) ttl.textContent = ttl.getAttribute('data-text') || '';
+  var els   = [].slice.call(document.querySelectorAll('.ledger .ln, .ledger .wd, .ledger .rvl > *'));
+  var rules = [].slice.call(document.querySelectorAll('.ledger .rule'));
+  if (window.TL) { try { window.TL.kill(); } catch (e) {} }
+  if (window.gsap) {
+    gsap.set(led, { opacity: 1, scale: 1 });
+    gsap.set(els, { yPercent: 0, x: 0 });
+    gsap.set(rules, { scaleX: 1, transformOrigin: 'left center' });
+  } else {
+    led.style.opacity = '1'; led.style.transform = 'none';
+    els.forEach(function (e) { e.style.transform = 'none'; });
+    rules.forEach(function (r) { r.style.transform = 'none'; });
+  }
+}
+(function armGuard() {
+  setTimeout(function () {
+    /* a pagina nascosta il rAF è fermo per progetto: non è un guasto, si ricontrolla */
+    if (document.hidden) return armGuard();
+    var t = window.TL;
+    if (t && (t.paused() || t.totalTime() > 0.05)) return;  /* gira, o è sotto scrub */
+    restStatic();
+  }, 3000);
+})();
+
+LW.ready(function () {
+  try {
+    var ledger = document.querySelector('.ledger');
+    var ttl    = document.querySelector('.ttl');
+    var rules  = [].slice.call(document.querySelectorAll('.ledger .rule'));
+    var rows   = [].slice.call(document.querySelectorAll('.row'));
+    var cells  = [].slice.call(document.querySelectorAll('.rvl > *')); /* dicitura + logo × 2 */
+
+    /* 1 · titolo giustificato (motore poster). Guardia: se sfora su due righe
+           si riduce il corpo finché torna sulla riga singola. */
+    var lines = LW.justify(ttl), guard = 0;
+    while (ttl.querySelectorAll('.lnmask').length > 1 && guard++ < 6) {
+      ttl.style.fontSize = (parseFloat(getComputedStyle(ttl).fontSize) - 5) + 'px';
+      lines = LW.justify(ttl);
+    }
+    var words = [];
+    lines.forEach(function (ln) {
+      var d = LW.packDeltas(ln);
+      [].slice.call(ln.children).forEach(function (wd, i) { wd._dx = d[i]; words.push(wd); });
+    });
+
+    /* 2 · guardia anti-collisione: il logo si abbassa finché dicitura + gap
+           minimo + logo entrano nella riga (mai deformare né ritagliare) */
+    var GAP = 48, sc = LW.stageScale() || 1;
+    rows.forEach(function (row) {
+      var txt = row.querySelector('.txt'), img = row.querySelector('img'), g = 0;
+      while (g++ < 60) {
+        var avail = row.getBoundingClientRect().width / sc;
+        var tw = txt.getBoundingClientRect().width / sc;
+        var iw = img.getBoundingClientRect().width / sc;
+        if (tw + GAP + iw <= avail) break;
+        var h = parseFloat(img.style.height) - 4;
+        if (h < 40) break;
+        img.style.height = h + 'px';
+      }
+    });
+
+    /* 3 · stato iniziale applicato SUBITO (sincrono): niente flash al load */
+    gsap.set(lines,  { yPercent: 110 });
+    gsap.set(words,  { x: function (i, t) { return t._dx || 0; } });
+    gsap.set(cells,  { yPercent: 110 });
+    gsap.set(rules,  { scaleX: 0, transformOrigin: 'left center' });
+    gsap.set(ledger, { opacity: 1, scale: 1 });
+
+    /* ── timeline · 19,8s (griglia da 0,6s = 100 BPM) ──────────────────────
+       titolo → regoli → righe → tenuta lunghissima → uscita verso l'alto.
+       La tenuta è di 10,8s: qui il tempo di lettura è il contenuto. */
+    var tl = gsap.timeline({ repeat: -1 });
+
+    /* stato di partenza del ciclo (identico al fotogramma finale: tutto
+       clipped nelle maschere e regoli a scaleX 0 → nero pieno) */
+    tl.set(lines,  { yPercent: 110 }, 0);
+    tl.set(words,  { x: function (i, t) { return t._dx || 0; } }, 0);
+    tl.set(cells,  { yPercent: 110 }, 0);
+    tl.set(rules,  { scaleX: 0, transformOrigin: 'left center' }, 0);
+    tl.set(ledger, { opacity: 1, scale: 1 }, 0);
+
+    /* 1 · il titolo sale da sotto la maschera */
+    tl.to(lines, { yPercent: 0, duration: 1.2, ease: 'soso', stagger: 0.12 }, 0);
+    /* 2 · l'aria si apre: le parole si distribuiscono edge-to-edge */
+    tl.to(words, { x: 0, duration: 2.4, ease: 'power2.inOut', stagger: 0.02 }, 1.2);
+    /* 3 · i regoli si tirano da sinistra, uno dopo l'altro */
+    tl.to(rules, { scaleX: 1, duration: 1.2, ease: 'soso', stagger: 0.45 }, 3.0);
+    /* 4 · le due righe entrano: prima si legge chi ringrazia, poi chi è ringraziato */
+    tl.to(cells, { yPercent: 0, duration: 1.2, ease: 'soso', stagger: 0.15 }, 3.9);
+    /* 5 · tenuta: respiro appena percettibile, la scena non è mai del tutto ferma */
+    tl.to(ledger, { scale: 1.006, duration: 5.4, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 5.7);
+    /* 6 · uscita verso l'alto; i regoli si ritirano verso destra */
+    tl.to(cells, { yPercent: -110, duration: 0.72, ease: 'power3.in', stagger: 0.12 }, 16.5);
+    tl.to(lines, { yPercent: -110, duration: 0.72, ease: 'power3.in', stagger: 0.12 }, 16.8);
+    /* immediateRender:false, se no il set scatterebbe alla creazione e i regoli
+       si tirerebbero da destra già al primo giro */
+    tl.set(rules, { transformOrigin: 'right center', immediateRender: false }, 17.05);
+    tl.to(rules, { scaleX: 0, duration: 0.9, ease: 'power2.in', stagger: 0.15 }, 17.1);
+    /* 7 · nero: il fotogramma finale è identico al primo */
+    tl.to({}, { duration: 1.5 }, 18.3);
+
+    window.TL = tl;
+  } catch (e) {
+    restStatic();   /* qualunque cosa vada storta, resta una composizione leggibile */
+  }
+});
+</script>
+</body>
+</html>
