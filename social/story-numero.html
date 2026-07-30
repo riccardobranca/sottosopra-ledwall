@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<title>Sottosopra — Story · Numero</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  /* «STORY · NUMERO» — variante C: impianto a due colonne.
+     Il numero del giorno grande a sinistra fa da ancora e da indice: si capisce
+     a colpo d'occhio di quale serata si parla. I nomi dei live stanno nella
+     colonna destra. La barra passa sotto tutto il blocco, a filo dei margini.
+     Logo grande centrato in basso, aria sotto per lo sticker link. */
+
+  .scene { position: absolute; left: 0; right: 0; padding: 0 72px; }
+  body.reel .scene { top: 250px; bottom: 500px; display: flex; flex-direction: column; }
+  body.post .scene { top: 96px;  bottom: 300px; display: flex; flex-direction: column; }
+
+  .head .just { font-size: 96px; }
+  body.post .head .just { font-size: 82px; }
+
+  .rows { flex: 1; display: flex; flex-direction: column; justify-content: space-evenly; }
+
+  .grid { display: grid; grid-template-columns: auto 1fr; gap: 0 34px; align-items: start; }
+
+  /* il numero: l'ancora del blocco */
+  .day { font-size: 150px; line-height: 0.86; display: block; }
+  body.post .day { font-size: 124px; }
+  .dow { font-size: 24px; letter-spacing: 0.2em; text-transform: uppercase;
+         color: var(--muted); display: block; margin-top: 6px; }
+  .dmask { overflow: hidden; }
+
+  /* i nomi: colonna destra, uno per riga */
+  .nm { font-size: 46px; line-height: 1.12; text-transform: uppercase; display: block; }
+  body.post .nm { font-size: 39px; }
+  .nmask { overflow: hidden; }
+
+  /* la barra chiude il blocco, a tutta larghezza */
+  .bar { height: 16px; margin-top: 22px; }
+  body.post .bar { height: 13px; }
+
+  .foot {
+    position: absolute; left: 72px; right: 72px;
+    display: flex; flex-direction: column; align-items: center; gap: 20px;
+  }
+  body.reel .foot { bottom: 300px; }
+  body.post .foot { bottom: 96px; }
+  .foot img { display: block; width: 620px; max-width: 100%; }
+  body.post .foot img { width: 520px; }
+  .foot .d { font-size: 28px; letter-spacing: 0.1em; text-transform: uppercase; text-align: center; }
+  .fmask { overflow: hidden; }
+</style>
+</head>
+<body class="reel">
+<div id="wrap">
+  <div id="stage">
+    <div class="scene">
+      <div class="head"><div class="just" id="head" data-text=""></div></div>
+      <div class="rows" id="rows"></div>
+    </div>
+
+    <div class="foot">
+      <div class="fmask"><img src="media/sottosopra-logo-black.png" alt="Sottosopra"></div>
+      <div class="fmask"><div class="d" id="dates"></div></div>
+    </div>
+
+    <div class="safe">
+      <i style="top:0;height:250px"></i>
+      <i style="bottom:0;height:200px"></i>
+    </div>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script src="vendor/CustomEase.min.js"></script>
+<script src="_dati.js"></script>
+<script src="_shared.js"></script>
+<script>
+SG.ready(function () {
+  SG.setTitle('#head');
+  var D = window.DATI;
+
+  document.getElementById('rows').innerHTML = D.serate.map(function (s) {
+    return '<div class="row">' +
+      '<div class="grid">' +
+        '<div><div class="dmask"><span class="day">' + s.d + '</span></div>' +
+        '<div class="dmask"><span class="dow">' + s.g + ' ' + s.mese + '</span></div></div>' +
+        '<div class="live">' + s.live.map(function (n) {
+          return '<div class="nmask"><div class="nm just" data-text="' + n + '"></div></div>';
+        }).join('') + '</div>' +
+      '</div>' +
+      '<div class="bar"><div class="fill"></div></div>' +
+    '</div>';
+  }).join('');
+
+  document.getElementById('dates').textContent = D.date;
+
+  var headEl = document.getElementById('head');
+  var headLines = SG.justify(headEl);
+  (function fitHead() {
+    var guard = 0;
+    while (guard++ < 30) {
+      var box = headEl.getBoundingClientRect(), over = false;
+      [].slice.call(headEl.querySelectorAll('.ln')).forEach(function (ln) {
+        var ink = [].slice.call(ln.children).reduce(function (a, k) {
+          return a + k.getBoundingClientRect().width; }, 0);
+        if (ink > box.width + 1) over = true;
+      });
+      if (!over) break;
+      headEl.style.fontSize = (parseFloat(getComputedStyle(headEl).fontSize) * 0.94).toFixed(1) + 'px';
+      headEl.removeAttribute('data-text');
+      headEl.textContent = D.titolo;
+      headLines = SG.justify(headEl);
+    }
+  })();
+  SG.capAir(headLines);
+  headLines.forEach(function (ln) {
+    var d = SG.packDeltas(ln);
+    [].slice.call(ln.children).forEach(function (wd, i) { wd._dx = d[i] || 0; });
+  });
+
+  /* i nomi vivono in una colonna più stretta (accanto al numero): la soglia del
+     tetto all'aria va più alta, o «POPA» si sfarina in quattro lettere sparse */
+  var nameEls = [].slice.call(document.querySelectorAll('.nm'));
+  var nameLines = [];
+  nameEls.forEach(function (el) { nameLines = nameLines.concat(SG.justify(el)); });
+  SG.capAir(nameLines, 0.7);
+
+  (function fitHeight() {
+    var avail = document.querySelector('.scene').getBoundingClientRect().height / (SG.stageScale() || 1);
+    var fs = SG.isPost ? 39 : 46, guard = 0;
+    while (guard++ < 24) {
+      var need = document.querySelector('.rows').scrollHeight
+               + document.querySelector('.head').getBoundingClientRect().height / (SG.stageScale() || 1);
+      if (need <= avail) break;
+      fs -= 1.5;
+      nameEls.forEach(function (e) { e.style.fontSize = fs + 'px'; });
+      if (fs <= 26) break;
+    }
+  })();
+
+  var headWds = [].slice.call(headEl.querySelectorAll('.wd'));
+  var rows  = [].slice.call(document.querySelectorAll('.row'));
+  var fills = [].slice.call(document.querySelectorAll('.fill'));
+  var days  = [].slice.call(document.querySelectorAll('.day'));
+  var dows  = [].slice.call(document.querySelectorAll('.dow'));
+  var foot  = [].slice.call(document.querySelectorAll('.foot .fmask > *'));
+
+  var tl = gsap.timeline();
+
+  tl.set(headLines, { yPercent: 110 });
+  tl.set(headWds, { x: function (i, t) { return t._dx || 0; } });
+  tl.set(days, { yPercent: 110 });
+  tl.set(dows, { yPercent: 110 });
+  tl.set(nameLines, { yPercent: 110 });
+  tl.set(fills, { scaleX: 0 });
+  tl.set(foot, { yPercent: 110 });
+
+  tl.to(headLines, { yPercent: 0, duration: 0.7, ease: 'soso', stagger: 0.08 }, 0);
+  tl.to(headWds, { x: 0, duration: 0.9, ease: 'expo.inOut', stagger: 0.008 }, 0.35);
+
+  /* per ogni serata: prima il numero (l'ancora), poi i nomi, poi la barra */
+  D.serate.forEach(function (s, i) {
+    var t0 = 0.7 + i * 0.55;
+    tl.to(days[i], { yPercent: 0, duration: 0.7, ease: 'soso' }, t0);
+    tl.to(dows[i], { yPercent: 0, duration: 0.55, ease: 'soso' }, t0 + 0.12);
+    var mine = [].slice.call(rows[i].querySelectorAll('.nm .ln'));
+    tl.to(mine, { yPercent: 0, duration: 0.6, ease: 'soso', stagger: 0.07 }, t0 + 0.18);
+    tl.to(fills[i], { scaleX: s.pct / 100, duration: 1.0, ease: 'power3.out' }, t0 + 0.36);
+  });
+
+  tl.to(foot, { yPercent: 0, duration: 0.65, ease: 'soso', stagger: 0.09 }, 2.7);
+
+  window.TL = tl;
+  setTimeout(function () { if (tl.time() < 1) tl.progress(1); }, 3000);
+});
+</script>
+</body>
+</html>

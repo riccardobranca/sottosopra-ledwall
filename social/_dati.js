@@ -12,9 +12,15 @@
    ⚠️ Se cambi le percentuali cambia SOLO questo file: tutte le grafiche lo leggono. */
 window.DATI = {
   serate: [
-    { g: 'Ven', d: '31', mese: 'lug', pct: 49, chi: 'Generic Animal' },
-    { g: 'Sab', d: '01', mese: 'ago', pct: 86, chi: 'Vendredi sur Mer' },
-    { g: 'Dom', d: '02', mese: 'ago', pct: 73, chi: 'Ex-Otago' },
+    /* `live` = solo i concerti (type musica del programma), in ordine di scaletta.
+       Restano fuori dj set (Spaghetti Disco, From Disco To Disco, Elasi),
+       talk e show (Dr. Pira, Libri Brutti): qui si mostrano i live. */
+    { g: 'Ven', d: '31', mese: 'lug', pct: 49, chi: 'Generic Animal',
+      live: ['Degheįo', 'Generic Animal', 'Krano', 'Cavalli Mongoli'] },
+    { g: 'Sab', d: '01', mese: 'ago', pct: 86, chi: 'Vendredi sur Mer',
+      live: ['Popa', 'Vendredi sur Mer', 'Faccianuvola'] },
+    { g: 'Dom', d: '02', mese: 'ago', pct: 73, chi: 'Ex-Otago',
+      live: ['Jesse the Faccio', 'Auroro Borealo', 'Ex-Otago'] },
   ],
   /* Il titolo. Tono del brand: comunitario, non allarmistico — «manchi solo tu»
      viene dal copy dei volontariə («lo facciamo in ottanta, manchi solo tu») e

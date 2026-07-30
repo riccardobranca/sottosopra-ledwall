@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<title>Sottosopra — Story · Nomi</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  /* «STORY · NOMI» — variante B: la gerarchia si ribalta.
+     Sono gli ARTISTI la cosa grande — sono loro il motivo per venire — e la
+     data diventa un'etichetta sopra il gruppo. La barra è una riga sottile
+     che chiude ogni blocco: dice quanto è pieno senza rubare la scena.
+     Logo grande e centrato in basso, aria sotto per lo sticker link. */
+
+  .scene { position: absolute; left: 0; right: 0; padding: 0 72px; }
+  body.reel .scene { top: 250px; bottom: 500px; display: flex; flex-direction: column; }
+  body.post .scene { top: 96px;  bottom: 300px; display: flex; flex-direction: column; }
+
+  .head .just { font-size: 96px; }
+  body.post .head .just { font-size: 82px; }
+
+  .rows { flex: 1; display: flex; flex-direction: column; justify-content: space-evenly; }
+
+  /* la data: piccola, spaziata, sopra il gruppo — è una didascalia */
+  .when {
+    font-size: 27px; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--muted); display: block; margin-bottom: 12px;
+  }
+
+  /* i nomi: grandi, giustificati edge-to-edge, uno per riga */
+  .nm { font-size: 60px; line-height: 1.02; text-transform: uppercase; display: block; }
+  body.post .nm { font-size: 50px; }
+  .nmask { overflow: hidden; }
+
+  /* la barra: una riga sottile sotto il gruppo, non un blocco */
+  .bar { height: 12px; margin-top: 20px; }
+  body.post .bar { height: 10px; }
+
+  .foot {
+    position: absolute; left: 72px; right: 72px;
+    display: flex; flex-direction: column; align-items: center; gap: 20px;
+  }
+  body.reel .foot { bottom: 300px; }   /* sotto: aria per lo sticker */
+  body.post .foot { bottom: 96px; }
+  .foot img { display: block; width: 620px; max-width: 100%; }
+  body.post .foot img { width: 520px; }
+  .foot .d { font-size: 28px; letter-spacing: 0.1em; text-transform: uppercase; text-align: center; }
+  .fmask { overflow: hidden; }
+</style>
+</head>
+<body class="reel">
+<div id="wrap">
+  <div id="stage">
+    <div class="scene">
+      <div class="head"><div class="just" id="head" data-text=""></div></div>
+      <div class="rows" id="rows"></div>
+    </div>
+
+    <div class="foot">
+      <div class="fmask"><img src="media/sottosopra-logo-black.png" alt="Sottosopra"></div>
+      <div class="fmask"><div class="d" id="dates"></div></div>
+    </div>
+
+    <div class="safe">
+      <i style="top:0;height:250px"></i>
+      <i style="bottom:0;height:200px"></i>
+    </div>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script src="vendor/CustomEase.min.js"></script>
+<script src="_dati.js"></script>
+<script src="_shared.js"></script>
+<script>
+SG.ready(function () {
+  SG.setTitle('#head');
+  var D = window.DATI;
+
+  document.getElementById('rows').innerHTML = D.serate.map(function (s) {
+    return '<div class="row">' +
+      '<span class="when">' + s.g + ' ' + s.d + ' ' + s.mese + '</span>' +
+      s.live.map(function (n) {
+        return '<div class="nmask"><div class="nm just" data-text="' + n + '"></div></div>';
+      }).join('') +
+      '<div class="bar"><div class="fill"></div></div>' +
+    '</div>';
+  }).join('');
+
+  document.getElementById('dates').textContent = D.date;
+
+  var headEl = document.getElementById('head');
+  var headLines = SG.justify(headEl);
+  (function fitHead() {
+    var guard = 0;
+    while (guard++ < 30) {
+      var box = headEl.getBoundingClientRect(), over = false;
+      [].slice.call(headEl.querySelectorAll('.ln')).forEach(function (ln) {
+        var ink = [].slice.call(ln.children).reduce(function (a, k) {
+          return a + k.getBoundingClientRect().width; }, 0);
+        if (ink > box.width + 1) over = true;
+      });
+      if (!over) break;
+      headEl.style.fontSize = (parseFloat(getComputedStyle(headEl).fontSize) * 0.94).toFixed(1) + 'px';
+      headEl.removeAttribute('data-text');
+      headEl.textContent = D.titolo;
+      headLines = SG.justify(headEl);
+    }
+  })();
+  SG.capAir(headLines);
+  headLines.forEach(function (ln) {
+    var d = SG.packDeltas(ln);
+    [].slice.call(ln.children).forEach(function (wd, i) { wd._dx = d[i] || 0; });
+  });
+
+  var nameEls = [].slice.call(document.querySelectorAll('.nm'));
+  var nameLines = [];
+  nameEls.forEach(function (el) { nameLines = nameLines.concat(SG.justify(el)); });
+  /* soglia più bassa: a questo corpo anche un nome corto regge il giustificato,
+     ma «POPA» da sola no — resterebbe una fila di lettere sparse */
+  SG.capAir(nameLines, 0.6);
+
+  /* il contenuto non deve mai arrivare al logo: se sfora si comprime */
+  (function fitHeight() {
+    var avail = document.querySelector('.scene').getBoundingClientRect().height / (SG.stageScale() || 1);
+    var fs = SG.isPost ? 50 : 60, guard = 0;
+    while (guard++ < 26) {
+      var need = document.querySelector('.rows').scrollHeight
+               + document.querySelector('.head').getBoundingClientRect().height / (SG.stageScale() || 1);
+      if (need <= avail) break;
+      fs -= 2;
+      nameEls.forEach(function (e) { e.style.fontSize = fs + 'px'; });
+      if (fs <= 30) break;
+    }
+  })();
+
+  var headWds = [].slice.call(headEl.querySelectorAll('.wd'));
+  var rows  = [].slice.call(document.querySelectorAll('.row'));
+  var fills = [].slice.call(document.querySelectorAll('.fill'));
+  var foot  = [].slice.call(document.querySelectorAll('.foot .fmask > *'));
+  var whens = [].slice.call(document.querySelectorAll('.when'));
+
+  var tl = gsap.timeline();
+
+  tl.set(headLines, { yPercent: 110 });
+  tl.set(headWds, { x: function (i, t) { return t._dx || 0; } });
+  tl.set(nameLines, { yPercent: 110 });
+  tl.set(whens, { opacity: 0 });
+  tl.set(fills, { scaleX: 0 });
+  tl.set(foot, { yPercent: 110 });
+
+  tl.to(headLines, { yPercent: 0, duration: 0.7, ease: 'soso', stagger: 0.08 }, 0);
+  tl.to(headWds, { x: 0, duration: 0.9, ease: 'expo.inOut', stagger: 0.008 }, 0.35);
+
+  /* per ogni serata: la didascalia, poi i nomi che salgono, poi la barra
+     che chiude il blocco — l'ordine in cui si legge */
+  D.serate.forEach(function (s, i) {
+    var t0 = 0.7 + i * 0.55;
+    tl.to(whens[i], { opacity: 1, duration: 0.4, ease: 'power2.out' }, t0);
+    var mine = [].slice.call(rows[i].querySelectorAll('.ln'));
+    tl.to(mine, { yPercent: 0, duration: 0.62, ease: 'soso', stagger: 0.08 }, t0 + 0.12);
+    tl.to(fills[i], { scaleX: s.pct / 100, duration: 1.0, ease: 'power3.out' }, t0 + 0.3);
+  });
+
+  tl.to(foot, { yPercent: 0, duration: 0.65, ease: 'soso', stagger: 0.09 }, 2.7);
+
+  window.TL = tl;
+  setTimeout(function () { if (tl.time() < 1) tl.progress(1); }, 3000);
+});
+</script>
+</body>
+</html>

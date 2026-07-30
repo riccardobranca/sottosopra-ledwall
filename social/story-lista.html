@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<title>Sottosopra — Story · Lista</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  /* «STORY · LISTA» — variante A della prima grafica, per le storie.
+     Ogni serata: data · barra muta · i nomi dei live elencati uno per riga.
+     Nessuna percentuale (la barra basta), nessuna CTA (ci va lo sticker link),
+     nessun kicker in alto. Il logo fa da PIEDE DEL FOGLIO: grande, centrato,
+     in basso, con l'aria sotto libera per lo sticker. */
+
+  .scene { position: absolute; left: 0; right: 0; padding: 0 72px; }
+  body.reel .scene { top: 250px; bottom: 500px; display: flex; flex-direction: column; }
+  body.post .scene { top: 96px;  bottom: 300px; display: flex; flex-direction: column; }
+
+  .head .just { font-size: 104px; }
+  body.post .head .just { font-size: 88px; }
+
+  .rows { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+
+  .row { padding: 24px 0; border-top: 3px solid var(--line); }
+  .row:first-child { border-top: 0; }
+
+  .when { font-size: 58px; line-height: 1; display: block; margin-bottom: 18px; }
+  body.post .when { font-size: 50px; }
+
+  .bar { height: 26px; margin-bottom: 22px; }
+  body.post .bar { height: 22px; }
+
+  /* i nomi dei live: sono loro il motivo per venire, quindi hanno peso.
+     Uno per riga, giustificati edge-to-edge come i titoli del brand. */
+  .live { display: flex; flex-direction: column; gap: 10px; }
+  /* NON flex: dopo la giustificazione il figlio è .lnmask e come flex item
+     diventerebbe shrink-to-fit, annullando la distribuzione interna del .ln
+     (i nomi finivano attaccati: «GENERICANIMAL»). */
+  .live .nm { font-size: 42px; line-height: 1; text-transform: uppercase; display: block; }
+  body.post .live .nm { font-size: 38px; }
+  .live .nmask { overflow: hidden; }
+
+  /* ── piede: il logo è il fondo del foglio ── */
+  .foot {
+    position: absolute; left: 72px; right: 72px;
+    display: flex; flex-direction: column; align-items: center; gap: 20px;
+  }
+  body.reel .foot { bottom: 300px; }   /* da qui in giù: ~300px di aria per lo sticker */
+  body.post .foot { bottom: 96px; }
+  .foot img { display: block; width: 620px; max-width: 100%; }
+  body.post .foot img { width: 520px; }
+  .foot .d { font-size: 28px; letter-spacing: 0.1em; text-transform: uppercase; text-align: center; }
+  .fmask { overflow: hidden; }
+</style>
+</head>
+<body class="reel">
+<div id="wrap">
+  <div id="stage">
+    <div class="scene">
+      <div class="head"><div class="just" id="head" data-text=""></div></div>
+      <div class="rows" id="rows"></div>
+    </div>
+
+    <div class="foot">
+      <div class="fmask"><img src="media/sottosopra-logo-black.png" alt="Sottosopra"></div>
+      <div class="fmask"><div class="d" id="dates"></div></div>
+    </div>
+
+    <div class="safe">
+      <i style="top:0;height:250px"></i>
+      <i style="bottom:0;height:200px"></i>
+    </div>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script src="vendor/CustomEase.min.js"></script>
+<script src="_dati.js"></script>
+<script src="_shared.js"></script>
+<script>
+SG.ready(function () {
+  SG.setTitle('#head');
+  var D = window.DATI;
+
+  document.getElementById('rows').innerHTML = D.serate.map(function (s) {
+    return '<div class="row">' +
+      '<span class="when">' + s.g.toUpperCase() + ' ' + s.d + ' ' + s.mese.toUpperCase() + '</span>' +
+      '<div class="bar"><div class="fill"></div></div>' +
+      '<div class="live">' + s.live.map(function (n) {
+        return '<div class="nmask"><div class="nm just" data-text="' + n + '"></div></div>';
+      }).join('') + '</div>' +
+    '</div>';
+  }).join('');
+
+  document.getElementById('dates').textContent = D.date;
+
+  /* titolo: giustificato, e se sfora scende di corpo */
+  var headEl = document.getElementById('head');
+  var headLines = SG.justify(headEl);
+  (function fit() {
+    var guard = 0;
+    while (guard++ < 30) {
+      var box = headEl.getBoundingClientRect(), over = false;
+      [].slice.call(headEl.querySelectorAll('.ln')).forEach(function (ln) {
+        var ink = [].slice.call(ln.children).reduce(function (a, k) {
+          return a + k.getBoundingClientRect().width; }, 0);
+        if (ink > box.width + 1) over = true;
+      });
+      if (!over) break;
+      headEl.style.fontSize = (parseFloat(getComputedStyle(headEl).fontSize) * 0.94).toFixed(1) + 'px';
+      headEl.removeAttribute('data-text');
+      headEl.textContent = D.titolo;
+      headLines = SG.justify(headEl);
+    }
+  })();
+  SG.capAir(headLines);
+  headLines.forEach(function (ln) {
+    var d = SG.packDeltas(ln);
+    [].slice.call(ln.children).forEach(function (wd, i) { wd._dx = d[i] || 0; });
+  });
+
+  /* i nomi: giustificati edge-to-edge, col tetto all'aria (un nome corto non
+     deve sfarinarsi in lettere sparse) */
+  var nameEls = [].slice.call(document.querySelectorAll('.nm'));
+  var nameLines = [];
+  nameEls.forEach(function (el) { nameLines = nameLines.concat(SG.justify(el)); });
+  SG.capAir(nameLines, 0.58);
+
+  /* Il contenuto non deve mai arrivare sotto al logo: se sfora, i nomi e le
+     spaziature si comprimono finché rientra. Senza questa guardia l'ultimo nome
+     finiva sopra il wordmark. */
+  (function fitHeight() {
+    var scene = document.querySelector('.scene');
+    var avail = scene.getBoundingClientRect().height / (SG.stageScale() || 1);
+    var nmFs = 42, pad = 24, guard = 0;
+    while (guard++ < 24) {
+      var need = document.querySelector('.rows').scrollHeight
+               + document.querySelector('.head').getBoundingClientRect().height / (SG.stageScale() || 1);
+      if (need <= avail) break;
+      nmFs -= 1.5; pad -= 1;
+      document.querySelectorAll('.live .nm').forEach(function (e) { e.style.fontSize = nmFs + 'px'; });
+      document.querySelectorAll('.row').forEach(function (e) { e.style.padding = Math.max(10, pad) + 'px 0'; });
+      if (nmFs <= 26) break;
+    }
+  })();
+
+  var headWds = [].slice.call(headEl.querySelectorAll('.wd'));
+  var rows  = [].slice.call(document.querySelectorAll('.row'));
+  var fills = [].slice.call(document.querySelectorAll('.fill'));
+  var foot  = [].slice.call(document.querySelectorAll('.foot .fmask > *'));
+
+  var tl = gsap.timeline();
+
+  tl.set(headLines, { yPercent: 110 });
+  tl.set(headWds, { x: function (i, t) { return t._dx || 0; } });
+  tl.set(nameLines, { yPercent: 110 });
+  tl.set(fills, { scaleX: 0 });
+  tl.set(rows, { opacity: 0 });
+  tl.set(foot, { yPercent: 110 });
+
+  /* 1 · il titolo, subito: entro un secondo e mezzo il messaggio c'è */
+  tl.to(headLines, { yPercent: 0, duration: 0.7, ease: 'soso', stagger: 0.08 }, 0);
+  tl.to(headWds, { x: 0, duration: 0.9, ease: 'expo.inOut', stagger: 0.008 }, 0.35);
+  tl.set(rows, { opacity: 1 }, 0.6);
+
+  /* 2 · per ogni serata: la barra si riempie e i nomi salgono dietro di lei */
+  D.serate.forEach(function (s, i) {
+    var t0 = 0.75 + i * 0.5;
+    tl.to(fills[i], { scaleX: s.pct / 100, duration: 1.1, ease: 'power3.out' }, t0);
+    var mine = [].slice.call(rows[i].querySelectorAll('.ln'));
+    tl.to(mine, { yPercent: 0, duration: 0.6, ease: 'soso', stagger: 0.07 }, t0 + 0.28);
+  });
+
+  /* 3 · il piede chiude il foglio */
+  tl.to(foot, { yPercent: 0, duration: 0.65, ease: 'soso', stagger: 0.09 }, 2.5);
+
+  /* 4 · e resta: nessuna uscita, la story si compone e si legge */
+  window.TL = tl;
+  setTimeout(function () { if (tl.time() < 1) tl.progress(1); }, 3000);
+});
+</script>
+</body>
+</html>
