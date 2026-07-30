@@ -231,7 +231,7 @@ SG.ready(function () {
   window.TL = tl;
 
   /* guardiano: se il rAF è strozzato l'intro non parte e il post resta bianco */
-  setTimeout(function () { if (tl.time() < 1) tl.progress(0.4); }, 3000);
+  setTimeout(function () { if (!SG.frozen && tl.time() < 1) tl.progress(0.4); }, 3000);
 });
 </script>
 </body>

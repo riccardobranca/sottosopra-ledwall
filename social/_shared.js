@@ -30,8 +30,9 @@ window.SG = (function () {
   function ready(fn) {
     function go() {
       fit();
-      if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { fit(); fn(); });
-      else fn();
+      var run = function () { fit(); fn(); applyScrub(); };
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(run);
+      else run();
     }
     if (document.readyState !== 'loading') go();
     else document.addEventListener('DOMContentLoaded', go);
@@ -137,8 +138,23 @@ window.SG = (function () {
     return tl;
   }
 
+  /* ?t=1.8 → congela la grafica a quell'istante. Serve all'export: si cattura
+     un fotogramma per volta con Chrome headless, che avanza il tempo virtuale.
+     ?export=1 → la pagina occupa esattamente lo stage, senza cornice grigia. */
+  function applyScrub() {
+    var t = parseFloat(Q.get('t'));
+    if (isNaN(t) || !window.TL) return;
+    window.TL.pause(t);
+  }
+  if (Q.get('export') === '1') {
+    document.documentElement.style.background = '#fff';
+    document.body.style.background = '#fff';
+  }
+
+  var frozen = !isNaN(parseFloat(Q.get('t')));
+
   return {
-    W: W, H: H, isPost: isPost,
+    W: W, H: H, isPost: isPost, frozen: frozen,
     fit: fit, ready: ready, justify: justify, setTitle: setTitle, noExit: noExit,
     packDeltas: packDeltas, stageScale: stageScale, capAir: capAir,
   };

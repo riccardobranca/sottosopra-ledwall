@@ -3,10 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="robots" content="noindex, nofollow">
-<title>Sottosopra — Story · Lista</title>
+<title>Sottosopra — Story · Tacche</title>
 <link rel="stylesheet" href="_shared.css">
 <style>
-  /* «STORY · LISTA» — variante A della prima grafica, per le storie.
+  /* «STORY · TACCHE» — la capienza si CONTA a occhio.
+     La barra è divisa in dieci blocchi uguali: ognuno è un decimo dei posti
+     della serata. Il riempimento copre i blocchi venduti, e sotto è scritto a
+     quanti posti corrisponde un blocco. Così la percentuale non è un numero
+     astratto: si vede quanti pezzi di sala sono andati.
+     Variante C della prima grafica, per le storie.
      Ogni serata: data · barra muta · i nomi dei live elencati uno per riga.
      Nessuna percentuale (la barra basta), nessuna CTA (ci va lo sticker link),
      nessun kicker in alto. Il logo fa da PIEDE DEL FOGLIO: grande, centrato,
@@ -31,9 +36,17 @@
   .pct { font-size: 64px; line-height: 1; }
   body.post .pct { font-size: 56px; }
   .pct em { font-style: normal; font-size: 0.5em; }
+  /* la traccia divisa in dieci blocchi: i divisori stanno SOPRA il riempimento,
+     così si contano anche nella parte piena */
+  .bar { position: relative; }
+  .ticks { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(10, 1fr); pointer-events: none; }
+  .ticks i { border-left: 3px solid var(--bg); }
+  .ticks i:first-child { border-left: 0; }
+  .legenda { font-size: 21px; letter-spacing: 0.14em; text-transform: uppercase;
+             color: var(--muted); margin-top: 8px; margin-bottom: 22px; }
 
-  .bar { height: 26px; margin-bottom: 22px; }
-  body.post .bar { height: 22px; }
+  .bar { height: 26px; margin-bottom: 0; }
+  body.post .bar { height: 22px; margin-bottom: 0; }
 
   /* i nomi dei live: sono loro il motivo per venire, quindi hanno peso.
      Uno per riga, giustificati edge-to-edge come i titoli del brand. */
@@ -93,7 +106,10 @@ SG.ready(function () {
         '<span class="when">' + s.g.toUpperCase() + ' ' + s.d + ' ' + s.mese.toUpperCase() + '</span>' +
         '<span class="pct">' + s.pct + '<em>%</em></span>' +
       '</div>' +
-      '<div class="bar"><div class="fill"></div></div>' +
+      '<div class="bar"><div class="fill"></div>' +
+        '<div class="ticks">' + '<i></i>'.repeat(10) + '</div></div>' +
+      '<div class="legenda">1 blocco = ' + Math.round(D.capienza / 10) + ' posti · ' +
+        D.capienza + ' in tutto</div>' +
       '<div class="live">' + s.live.map(function (n) {
         return '<div class="nmask"><div class="nm just" data-text="' + n + '"></div></div>';
       }).join('') + '</div>' +
