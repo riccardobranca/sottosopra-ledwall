@@ -25,16 +25,9 @@
 
   .ente { display: flex; flex-direction: column; }
 
-  /* la dicitura: sopra, con tutto lo spazio che le serve */
-  .dmask { overflow: hidden; }
-  .dic {
-    font-size: 22px; line-height: 1.5; letter-spacing: 0.1em;
-    text-transform: uppercase; color: var(--muted);
-    min-height: 132px;     /* le due colonne partono dalla stessa quota anche se
-                              una dicitura è lunga e l'altra corta */
-  }
-
-  /* il logo: in basso nella colonna, centrato, mai deformato */
+  /* il logo: centrato nella colonna, in verticale e in orizzontale.
+     Le diciture dei singoli enti sono state tolte: resta il titolo comune
+     «CON IL SOSTEGNO DI», e i due loghi si guardano alla stessa altezza. */
   .lwrap { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; }
   .lwrap img { display: block; filter: invert(1); }
 </style>
@@ -47,24 +40,20 @@
 
       <div class="duo">
         <div class="ente">
-          <div class="dmask"><div class="dic">Con il Patrocinio di</div></div>
           <div class="lwrap">
-            <img src="logos/citta-castelfranco.png" alt="Città di Castelfranco Veneto" style="height:170px">
+            <img src="logos/citta-castelfranco.png" alt="Città di Castelfranco Veneto" style="height:200px">
           </div>
         </div>
 
         <div class="divider"></div>
 
         <div class="ente">
-          <div class="dmask"><div class="dic">Progetto realizzato in collaborazione e con il contributo della Camera di commercio di Treviso-Belluno</div></div>
           <div class="lwrap">
-            <img src="logos/camera-commercio.png" alt="Camera di commercio di Treviso-Belluno" style="height:76px">
+            <img src="logos/camera-commercio.png" alt="Camera di commercio di Treviso-Belluno" style="height:92px">
           </div>
         </div>
       </div>
     </div>
-
-    <div class="meta"><span>Sottosopra APS</span><span>Castelfranco Veneto</span></div>
   </div>
 </div>
 
@@ -74,17 +63,17 @@
 <script>
 LW.ready(function () {
   var headLines = LW.justify(document.querySelector('.head .just'));
-  var dics   = [].slice.call(document.querySelectorAll('.dic'));
   var imgs   = [].slice.call(document.querySelectorAll('.lwrap img'));
   var divider = document.querySelector('.divider');
 
   /* i loghi non devono mai sfondare la loro colonna: se succede, si riduce
      l'altezza (la larghezza segue — un logo istituzionale non si deforma mai) */
-  var sc = LW.stageScale() || 1;
+  /* misure con offsetWidth: getBoundingClientRect torna 0 quando la pagina
+     non è dipinta (finestra nascosta), e il fit sballerebbe */
   imgs.forEach(function (img) {
-    var colW = img.closest('.lwrap').getBoundingClientRect().width / sc;
+    var colW = img.closest('.lwrap').offsetWidth;
     var h = parseFloat(img.style.height), guard = 0;
-    while (img.getBoundingClientRect().width / sc > colW - 8 && h > 40 && guard++ < 60) {
+    while (img.offsetWidth > colW - 8 && h > 40 && guard++ < 80) {
       h -= 4; img.style.height = h + 'px';
     }
   });
@@ -92,7 +81,6 @@ LW.ready(function () {
   var tl = gsap.timeline({ repeat: -1 });
 
   tl.set(headLines, { yPercent: 110 });
-  tl.set(dics, { yPercent: 110 });
   tl.set(imgs, { yPercent: 120, opacity: 0 });
   tl.set(divider, { scaleY: 0, transformOrigin: '50% 0%' });
 
@@ -100,17 +88,14 @@ LW.ready(function () {
   tl.to(headLines, { yPercent: 0, duration: 0.85, ease: 'soso' });
   tl.to(divider, { scaleY: 1, duration: 0.8, ease: 'soso' }, '-=0.45');
 
-  /* 2 · le due diciture insieme: nessuna delle due arriva prima dell'altra */
-  tl.to(dics, { yPercent: 0, duration: 0.85, ease: 'soso' }, '-=0.5');
-
   /* 3 · i loghi, anche loro in coppia */
   tl.to(imgs, { yPercent: 0, opacity: 1, duration: 0.9, ease: 'soso' }, '-=0.45');
 
-  /* 4 · tenuta lunga: la dicitura della Camera è lunga e va letta con calma */
+  /* 4 · tenuta: i due loghi restano insieme il tempo di essere visti */
   tl.to('.scene', { scale: 1.006, duration: 4.0, ease: 'sine.inOut', yoyo: true, repeat: 1 });
 
   /* 5 · uscita */
-  tl.to([dics, imgs], { yPercent: -120, opacity: 0, duration: 0.55, ease: 'power2.in', stagger: 0.05 });
+  tl.to(imgs, { yPercent: -120, opacity: 0, duration: 0.55, ease: 'power2.in', stagger: 0.05 });
   tl.to(headLines, { yPercent: -110, duration: 0.5, ease: 'power2.in' }, '<');
   tl.to(divider, { scaleY: 0, duration: 0.5, ease: 'power2.in', transformOrigin: '50% 100%' }, '<');
   tl.to({}, { duration: 0.6 });

@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<title>Sottosopra — Ledwall · Partner (gerarchia a vista)</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  /* ── due momenti, stessa inquadratura ──
+     P1 · «LO RENDONO POSSIBILE»  → i 6 MAIN grandi e FERMI + sotto il regolo
+          una striscia sottile con tutti gli altri che scorre: la gerarchia
+          si legge in un colpo solo (grande/fermo vs piccolo/in moto).
+     P2 · «GRAZIE ANCHE A»        → la striscia diventa lo stage intero:
+          tre nastri per tier, ognuno col suo passo.                        */
+
+  .part {
+    position: absolute; inset: 34px;
+    display: flex; flex-direction: column; justify-content: center;
+    visibility: hidden;
+  }
+  /* mai comprimere: i loghi vivono dentro maschere overflow:hidden e si
+     taglierebbero a metà invece di rimpicciolirsi */
+  .part > * { flex-shrink: 0; }
+
+  .labmask { overflow: hidden; }
+  .label { line-height: 1.2; }
+
+  /* ── P1 · griglia main: 2 colonne da 453px + 60 di gap = 966 esatti ── */
+  #mainGrid {
+    margin-top: 38px;
+    display: grid;
+    grid-template-columns: 453px 453px;
+    column-gap: 60px; row-gap: 36px;
+    justify-items: center; align-items: center;
+  }
+  .lmask { display: block; overflow: hidden; }
+  .lmask img { display: block; filter: invert(1); }
+
+  #p1 .just { margin-top: 10px; }
+  #r1 { margin-top: 30px; }
+  #p1strip { margin-top: 16px; opacity: 0; }
+
+  /* ── nastri (moto continuo: CSS, mai GSAP) ── */
+  .win { overflow: hidden; display: flex; align-items: center; }
+  .track { display: flex; width: max-content; will-change: transform;
+           animation: scroll var(--dur, 60s) linear infinite; }
+  .seq { display: flex; align-items: center; gap: var(--gap, 60px); padding-right: var(--gap, 60px); }
+  .seq img { display: block; filter: invert(1); }
+  .seq .txt { color: #fff; text-transform: uppercase; letter-spacing: 0.05em;
+              white-space: nowrap; line-height: 1; }
+  @keyframes scroll { to { transform: translateX(-50%); } }
+
+  /* ── P2 · bande ── */
+  #p2 .just { margin-bottom: 26px; }
+  .band { overflow: hidden; }
+  .bandin { display: flex; flex-direction: column; gap: 8px; }
+  .p2rule { margin: 18px 0; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage">
+
+    <!-- ── PARTE 1 · i main, con tutto lo spazio che meritano ── -->
+    <section class="part" id="p1">
+      <div class="labmask"><div class="label">Main partner</div></div>
+      <div class="just" id="t1" data-text="Lo rendono possibile"></div>
+      <div class="grid" id="mainGrid"></div>
+      <div class="rule" id="r1"></div>
+      <div class="win" id="p1strip" data-tier="others" data-base="34" data-speed="46" data-gap="40" style="height:48px">
+        <div class="track"></div>
+      </div>
+    </section>
+
+    <!-- ── PARTE 2 · tutti gli altri, uno per tier ── -->
+    <section class="part" id="p2">
+      <div class="just" id="t2" data-text="Grazie anche a"></div>
+
+      <div class="band" data-tier="premium" data-base="108" data-speed="34" data-gap="86">
+        <div class="bandin">
+          <div class="label">Partner</div>
+          <div class="win" style="height:146px"><div class="track"></div></div>
+        </div>
+      </div>
+      <div class="rule p2rule"></div>
+      <div class="band" data-tier="supporter" data-base="88" data-speed="48" data-gap="70">
+        <div class="bandin">
+          <div class="label">Supporter</div>
+          <div class="win" style="height:116px"><div class="track"></div></div>
+        </div>
+      </div>
+      <div class="rule p2rule"></div>
+      <div class="band" data-tier="tecnici" data-base="72" data-speed="62" data-gap="58">
+        <div class="bandin">
+          <div class="label">Partner tecnici</div>
+          <div class="win" style="height:95px"><div class="track"></div></div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script src="vendor/CustomEase.min.js"></script>
+<script src="_shared.js"></script>
+<script>
+/* ── partner 2026 (fonte: src/content/sponsors.yaml del sito) ── */
+var P = {
+  main:      ['prodeco', 'banca-terre-venete', 'cna', 'super-agency', 'azimut', 'ceccato'],
+  premium:   ['adriatica-strade', 'merieux', 'ferro', 'got-bag'],
+  supporter: ['vudafieri', 'zurich-spadavecchia', 'fraccaro', 'permatech', 'jb-baggio',
+              'ots-sistemi', 'noi-group', 'banda-bistrot', 'brewrise', 'dentro-centro'],
+  tecnici:   ['santi-autotrasporti', 'hotel-alla-torre', 'albergo-roma', 'proloco-castelfranco',
+              'santi-group', 'officine-tonello', 'piu-service', 'via-vai', 'citta-invisibile',
+              'despar', 'TEXT:Studio Fiscon']
+};
+P.others = P.premium.concat(P.supporter, P.tecnici);   /* la striscia della parte 1 */
+
+var CELL = 453;          /* larghezza cella della griglia main */
+var started = false;     /* → guardiano */
+
+/* ── normalizzazione ad AREA percettiva (formula del PartnerLedger del sito):
+      h = base * sqrt(2.8 / AR), clamp [0.5, 1.3] · base.
+      Si imposta SOLO l'altezza (width:auto) → mai deformati.
+      capW = larghezza massima concessa (celle della griglia). ── */
+function sizeLogo(img) {
+  var base = +img.dataset.base, capW = +img.dataset.cap || 0;
+  var nw = img.naturalWidth, nh = img.naturalHeight;
+  if (!nw || !nh) { img.style.height = base + 'px'; return; }
+  var ar = nw / nh;
+  var k = Math.sqrt(2.8 / ar);
+  if (k > 1.3) k = 1.3; else if (k < 0.5) k = 0.5;
+  var h = base * k;
+  if (capW) { var hMax = capW / ar; if (h > hMax) h = hMax; }
+  img.style.height = (Math.round(h * 10) / 10) + 'px';
+}
+function sizeAll() {
+  [].slice.call(document.querySelectorAll('img[data-base]')).forEach(sizeLogo);
+}
+
+function makeImg(id, base, cap) {
+  var img = document.createElement('img');
+  img.src = 'logos/' + id + '.png';
+  img.alt = id;
+  img.dataset.base = base;
+  if (cap) img.dataset.cap = cap;
+  return img;
+}
+
+/* ── griglia dei main: 3 righe × 2 colonne, ogni logo nella sua maschera ── */
+function buildGrid() {
+  var g = document.getElementById('mainGrid');
+  P.main.forEach(function (id) {
+    var m = document.createElement('span');
+    m.className = 'lmask';
+    m.appendChild(makeImg(id, 104, CELL));
+    g.appendChild(m);
+  });
+}
+
+/* ── nastri: sequenza duplicata + durata dalla larghezza reale (px/s costanti) ── */
+function buildBand(host) {
+  var tier = host.dataset.tier, base = +host.dataset.base, gap = +host.dataset.gap;
+  var track = host.querySelector('.track');
+  track.style.setProperty('--gap', gap + 'px');
+  function seq() {
+    var s = document.createElement('div');
+    s.className = 'seq';
+    P[tier].forEach(function (id) {
+      if (id.indexOf('TEXT:') === 0) {
+        var t = document.createElement('span');
+        t.className = 'txt';
+        t.textContent = id.slice(5);
+        t.style.fontSize = Math.round(base * 0.52) + 'px';
+        s.appendChild(t);
+      } else {
+        s.appendChild(makeImg(id, base, 0));
+      }
+    });
+    return s;
+  }
+  track.appendChild(seq());
+  track.appendChild(seq());
+}
+function setDurations() {
+  [].slice.call(document.querySelectorAll('[data-speed]')).forEach(function (host) {
+    var track = host.querySelector('.track');
+    var w = track.querySelector('.seq').getBoundingClientRect().width / (LW.stageScale() || 1);
+    if (w > 0) track.style.setProperty('--dur', (w / +host.dataset.speed).toFixed(2) + 's');
+  });
+}
+
+/* ── titolo: una sola riga giustificata edge-to-edge (rimpicciolisce se wrappa) ── */
+function justifyFit(el, size, min) {
+  var lines;
+  do {
+    el.style.fontSize = size + 'px';
+    lines = LW.justify(el);
+    if (lines.length <= 1 || size <= min) break;
+    size -= 4;
+  } while (true);
+  el.setAttribute('aria-label', el.getAttribute('data-text'));
+  lines.forEach(function (ln) {
+    var d = LW.packDeltas(ln);
+    [].slice.call(ln.children).forEach(function (wd, i) { wd._dx = d[i] || 0; });
+  });
+  return lines;
+}
+
+/* ── guardiano: se dopo 3s l'intro non è partita (rAF strozzato, decode appeso),
+      forza lo stato finale della parte 1 — meglio un fermo leggibile che il nero ── */
+setTimeout(function () {
+  if (started) return;
+  try { sizeAll(); } catch (e) {}
+  var p1 = document.getElementById('p1');
+  if (p1) p1.style.visibility = 'visible';
+  [].slice.call(document.querySelectorAll('#p1 .ln, #p1 .label, #mainGrid img, #r1')).forEach(function (el) {
+    el.style.transform = 'none'; el.style.opacity = '1';
+  });
+  [].slice.call(document.querySelectorAll('#p1 .wd')).forEach(function (el) { el.style.transform = 'none'; });
+  var s = document.getElementById('p1strip');
+  if (s) s.style.opacity = '0.62';
+}, 3000);
+
+LW.ready(function () {
+  buildGrid();
+  buildBand(document.getElementById('p1strip'));
+  [].slice.call(document.querySelectorAll('.band')).forEach(buildBand);
+
+  var p1 = document.getElementById('p1'), p2 = document.getElementById('p2');
+
+  /* misura i titoli con le sezioni visibili (stesso task → nessun paint intermedio) */
+  p1.style.visibility = 'visible'; p2.style.visibility = 'visible';
+  var l1 = justifyFit(document.getElementById('t1'), 66, 40);
+  var l2 = justifyFit(document.getElementById('t2'), 72, 44);
+  p1.style.visibility = 'hidden'; p2.style.visibility = 'hidden';
+
+  var w1 = [].slice.call(document.querySelectorAll('#t1 .wd'));
+  var w2 = [].slice.call(document.querySelectorAll('#t2 .wd'));
+  var lab1 = document.querySelector('#p1 .label');
+  var grid = document.getElementById('mainGrid');
+  var mainImgs = [].slice.call(document.querySelectorAll('#mainGrid img'));
+  var r1 = document.getElementById('r1');
+  var strip = document.getElementById('p1strip');
+  var bandins = [].slice.call(document.querySelectorAll('#p2 .bandin'));
+  var p2rules = [].slice.call(document.querySelectorAll('.p2rule'));
+
+  /* stato di partenza subito (niente lampo di loghi grezzi al primo frame) */
+  gsap.set(l1.concat(l2), { yPercent: 110 });
+  gsap.set(mainImgs.concat(bandins), { yPercent: 110 });
+  gsap.set([lab1], { yPercent: 110 });
+  gsap.set([r1].concat(p2rules), { scaleX: 0, transformOrigin: 'left center' });
+
+  function start() {
+    sizeAll();
+    requestAnimationFrame(function () {
+      setDurations();
+      started = true;
+      build();
+    });
+  }
+
+  function build() {
+    var tl = gsap.timeline({ repeat: -1 });
+
+    /* ══ PARTE 1 · 0.45 → 11.70 ═══════════════════════════════════════ */
+    var A = 0.45;
+    tl.set(p1, { visibility: 'visible' }, A);
+    tl.set(l1, { yPercent: 110 }, A);
+    tl.set(w1, { x: function (i, t) { return t._dx || 0; } }, A);
+    tl.set(lab1, { yPercent: 110 }, A);
+    tl.set(mainImgs, { yPercent: 110 }, A);
+    tl.set(grid, { scale: 1 }, A);
+    tl.set(r1, { scaleX: 0, transformOrigin: 'left center' }, A);
+    tl.set(strip, { opacity: 0 }, A);
+
+    tl.to(lab1, { yPercent: 0, duration: 0.6, ease: 'soso' }, A);
+    tl.to(l1, { yPercent: 0, duration: 0.85, ease: 'soso', stagger: 0.11 }, A + 0.12);
+    /* l'aria si apre: le parole si distribuiscono edge-to-edge */
+    tl.to(w1, { x: 0, duration: 1.15, ease: 'expo.inOut', stagger: 0.012 }, A + 0.5);
+    /* i main salgono dalle loro maschere, uno dopo l'altro */
+    tl.to(mainImgs, { yPercent: 0, duration: 0.9, ease: 'soso', stagger: 0.09 }, A + 0.75);
+    /* il regolo taglia lo stage e sotto arriva la coda di tutti gli altri */
+    tl.to(r1, { scaleX: 1, duration: 1.0, ease: 'power2.inOut' }, A + 1.1);
+    tl.to(strip, { opacity: 0.62, duration: 0.9, ease: 'power2.out' }, A + 1.5);
+
+    /* tenuta: i main respirano, la striscia sotto non si ferma mai */
+    tl.to(grid, { scale: 1.008, duration: 3.85, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 2.90);
+
+    /* uscita: il titolo sale, i loghi ricadono nelle maschere */
+    tl.to(lab1, { yPercent: -110, duration: 0.5, ease: 'power2.in' }, 10.70);
+    tl.to(l1, { yPercent: -110, duration: 0.55, ease: 'power2.in', stagger: 0.06 }, 10.70);
+    tl.to(mainImgs, { yPercent: 110, duration: 0.6, ease: 'power3.in', stagger: 0.06 }, 10.75);
+    tl.set(r1, { transformOrigin: 'right center' }, 10.75);
+    tl.to(r1, { scaleX: 0, duration: 0.6, ease: 'power2.in' }, 10.80);
+    tl.to(strip, { opacity: 0, duration: 0.6, ease: 'power2.in' }, 10.80);
+    tl.set(p1, { visibility: 'hidden' }, 11.70);
+
+    /* ══ PARTE 2 · 12.35 → 23.25 ══════════════════════════════════════ */
+    var B = 12.35;
+    tl.set(p2, { visibility: 'visible' }, B);
+    tl.set(l2, { yPercent: 110 }, B);
+    tl.set(w2, { x: function (i, t) { return t._dx || 0; } }, B);
+    tl.set(bandins, { yPercent: 110 }, B);
+    tl.set(p2rules, { scaleX: 0, transformOrigin: 'left center' }, B);
+
+    tl.to(l2, { yPercent: 0, duration: 0.85, ease: 'soso', stagger: 0.11 }, B + 0.10);
+    tl.to(w2, { x: 0, duration: 1.15, ease: 'expo.inOut', stagger: 0.012 }, B + 0.50);
+    /* le tre bande salgono dal basso, dalla più grande alla più piccola */
+    tl.to(bandins, { yPercent: 0, duration: 0.95, ease: 'soso', stagger: 0.16 }, B + 0.65);
+    tl.to(p2rules, { scaleX: 1, duration: 0.9, ease: 'power2.inOut', stagger: 0.16 }, B + 0.95);
+
+    /* tenuta: qui il respiro sono i nastri, ognuno col suo passo */
+
+    tl.to(bandins, { yPercent: 110, duration: 0.6, ease: 'power3.in', stagger: 0.10 }, 22.35);
+    tl.to(l2, { yPercent: -110, duration: 0.55, ease: 'power2.in', stagger: 0.06 }, 22.50);
+    tl.set(p2rules, { transformOrigin: 'right center' }, 22.40);
+    tl.to(p2rules, { scaleX: 0, duration: 0.55, ease: 'power2.in', stagger: 0.08 }, 22.45);
+    tl.set(p2, { visibility: 'hidden' }, 23.25);
+
+    /* nero fino a 24.00 → ultimo frame ≡ primo */
+    tl.to({}, { duration: 0.75 }, 23.25);
+
+    window.TL = tl;
+  }
+
+  /* le altezze dei loghi dipendono dalle dimensioni naturali → aspetta il decode */
+  var imgs = [].slice.call(document.querySelectorAll('img[data-base]'));
+  Promise.all(imgs.map(function (i) {
+    return i.decode ? i.decode().catch(function () {}) : Promise.resolve();
+  })).then(start, start);
+});
+</script>
+</body>
+</html>

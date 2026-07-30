@@ -55,8 +55,6 @@
       </div>
     </div>
 
-    <div class="meta"><span id="metaL"></span><span>Giardini del Castello</span></div>
-
   </div>
 </div>
 
@@ -86,9 +84,7 @@ LW.ready(function () {
     { d: 'dom', t: '2 agosto' }
   ];
   var today = pickDay();
-  document.getElementById('metaL').innerHTML = DATES.map(function (x) {
-    return x.d === today ? '<span class="on">' + x.t + '</span>' : x.t;
-  }).join(' · ');
+  /* (la riga-date in fondo è stata rimossa insieme alla meta) */
 
   /* ── titolone: righe giustificate + delta "compatto → giustificato" ─────
      fit: se il corpo scelto facesse andare il blocco a capo, si scende finché

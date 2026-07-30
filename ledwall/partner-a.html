@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<title>Sottosopra — Ledwall · Partner (vetrina + nastri)</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  /* due momenti nello stesso stage: 1 · vetrina main · 2 · nastri di tutti gli altri */
+  .part { position: absolute; inset: 0; padding: 40px 34px 34px;
+          display: flex; flex-direction: column; visibility: hidden; }
+  .head { flex: 0 0 auto; }
+  .ttl { line-height: 1; }
+  .head-rule { margin-top: 26px; transform-origin: left center; }
+  .head-label { display: block; margin-top: 12px; line-height: 1; }
+
+  /* ── parte 1 · i main fermi, con tutto lo spazio ── */
+  .grid { flex: 1 1 auto; min-height: 0; margin-top: 22px;
+          display: flex; flex-direction: column; justify-content: space-between; }
+  .row  { display: flex; justify-content: space-between; align-items: center; }
+  .cell { flex: 0 0 auto; display: block; overflow: hidden; } /* maschera del reveal */
+  .cell img { display: block; width: auto; filter: invert(1); }
+
+  /* ── parte 2 · nastri per tier ── */
+  .lanes { flex: 1 1 auto; min-height: 0; margin-top: 22px;
+           display: flex; flex-direction: column; justify-content: space-between; }
+  .lane { overflow: hidden; }              /* maschera del reveal di corsia */
+  .lane .rule { transform-origin: left center; }
+  .lane-label { display: block; margin-top: 12px; line-height: 1; }
+  .win { margin-top: 12px; overflow: hidden; display: flex; align-items: center; }
+  .track { display: flex; width: max-content; will-change: transform; }
+  .seq { display: flex; align-items: center; }
+  .seq img { display: block; width: auto; filter: invert(1); }
+  .seq .txt { white-space: nowrap; line-height: 1; letter-spacing: 0.05em;
+              text-transform: uppercase; color: #fff; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage">
+
+    <section class="part" id="p1">
+      <div class="head">
+        <div class="just ttl" style="font-size:66px" data-text="Lo rendono possibile"></div>
+        <div class="rule head-rule"></div>
+        <span class="label head-label">Main partner</span>
+      </div>
+      <div class="grid" id="grid"></div>
+    </section>
+
+    <section class="part" id="p2">
+      <div class="head">
+        <div class="just ttl" style="font-size:66px" data-text="Grazie anche a"></div>
+      </div>
+      <div class="lanes" id="lanes"></div>
+    </section>
+
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script src="vendor/CustomEase.min.js"></script>
+<script src="_shared.js"></script>
+<script>
+LW.ready(function () {
+
+  /* ── partner 2026 (da sponsors.yaml del sito) ──
+     parte 1: i 6 main, fermi, in tre righe edge-to-edge
+     parte 2: tutti gli altri in nastri per tier, a sensi alternati            */
+  var MAIN_ROWS = [
+    ['prodeco', 'banca-terre-venete'],
+    ['cna', 'super-agency'],
+    ['azimut', 'ceccato']
+  ];
+  var LANES = [
+    { label: 'Partner', base: 78, gap: 130, win: 104, dir: 1,
+      ids: ['adriatica-strade', 'merieux', 'ferro', 'got-bag'] },
+    { label: 'Supporter', base: 56, gap: 56, win: 78, dir: -1,
+      ids: ['vudafieri', 'zurich-spadavecchia', 'fraccaro', 'permatech', 'jb-baggio',
+            'ots-sistemi', 'noi-group', 'banda-bistrot', 'brewrise', 'dentro-centro'] },
+    { label: 'Partner tecnici', base: 46, gap: 48, win: 64, dir: 1,
+      ids: ['santi-autotrasporti', 'hotel-alla-torre', 'albergo-roma', 'proloco-castelfranco',
+            'santi-group', 'officine-tonello', 'TEXT:Studio Fiscon', 'piu-service',
+            'via-vai', 'citta-invisibile', 'despar'] }
+  ];
+
+  var MAIN_BASE = 130, MAIN_GAP = 72;   /* base = solo riferimento: ogni riga si ri-scala per riempire */
+  var T2 = 11.60, RIB = 10.75;          /* attacco parte 2 · durata del moto dei nastri */
+
+  var p1 = document.getElementById('p1'), p2 = document.getElementById('p2');
+  var grid = document.getElementById('grid'), lanesEl = document.getElementById('lanes');
+  var built = false, started = false;
+
+  /* ── 1 · DOM ────────────────────────────────────────────────────────────── */
+  MAIN_ROWS.forEach(function (ids) {
+    var row = document.createElement('div');
+    row.className = 'row';
+    ids.forEach(function (id) {
+      var cell = document.createElement('div'); cell.className = 'cell';
+      var img = document.createElement('img');
+      img.src = 'logos/' + id + '.png'; img.alt = id;
+      cell.appendChild(img); row.appendChild(cell);
+    });
+    grid.appendChild(row);
+  });
+
+  LANES.forEach(function (cfg) {
+    var lane = document.createElement('div'); lane.className = 'lane';
+    var inn = document.createElement('div'); inn.className = 'lane-in';
+    inn.innerHTML =
+      '<div class="rule"></div>' +
+      '<span class="label lane-label"></span>' +
+      '<div class="win"><div class="track"><div class="seq"></div><div class="seq"></div></div></div>';
+    inn.querySelector('.lane-label').textContent = cfg.label;
+    inn.querySelector('.win').style.height = cfg.win + 'px';
+    [].forEach.call(inn.querySelectorAll('.seq'), function (seq) {
+      seq.style.gap = cfg.gap + 'px';
+      seq.style.paddingRight = cfg.gap + 'px';   /* stacco fra le due copie */
+      cfg.ids.forEach(function (id) {
+        if (id.indexOf('TEXT:') === 0) {         /* Studio Fiscon: non ha logo → resa tipografica */
+          var s = document.createElement('span');
+          s.className = 'txt'; s.textContent = id.slice(5);
+          s.style.fontSize = Math.round(cfg.base * 0.5) + 'px';
+          seq.appendChild(s);
+        } else {
+          var im = document.createElement('img');
+          im.src = 'logos/' + id + '.png'; im.alt = id;
+          seq.appendChild(im);
+        }
+      });
+    });
+    lane.appendChild(inn); lanesEl.appendChild(lane);
+    cfg.inner = inn;
+  });
+
+  /* ── 2 · misure ─────────────────────────────────────────────────────────── */
+  /* normalizzazione ad AREA percettiva (formula del PartnerLedger del sito):
+     h = base * sqrt(2.8 / AR), clamp [0.5, 1.3] * base — mai deformare: solo altezza */
+  function areaH(base, ar) {
+    var k = Math.sqrt(2.8 / ar);
+    return base * Math.min(1.3, Math.max(0.5, k));
+  }
+  function arOf(img) {
+    return (img.naturalWidth && img.naturalHeight) ? img.naturalWidth / img.naturalHeight : 2.8;
+  }
+
+  function layout() {
+    /* parte 1: ogni riga si ri-scala perché l'inchiostro riempia la larghezza
+       meno il gap → space-between produce ESATTAMENTE quel gap: zero sovrapposizioni */
+    var availW = grid.clientWidth || 966;
+    var availH = grid.clientHeight || 470;
+    var rows = [].slice.call(grid.children), heights = [];
+
+    rows.forEach(function (row) {
+      var nat = [].slice.call(row.querySelectorAll('img')).map(function (im) {
+        var ar = arOf(im), h = areaH(MAIN_BASE, ar);
+        return { im: im, h: h, w: h * ar };
+      });
+      var ink = nat.reduce(function (a, n) { return a + n.w; }, 0);
+      var s = (availW - MAIN_GAP * (nat.length - 1) - 2) / ink;
+      var mx = 0;
+      nat.forEach(function (n) { n.h *= s; n.w *= s; if (n.h > mx) mx = n.h; });
+      row._nat = nat; heights.push(mx);
+    });
+
+    /* guardia verticale: se le righe non ci stanno, scala tutto (non si sfora mai) */
+    var tot = heights.reduce(function (a, b) { return a + b; }, 0);
+    var limit = availH - 34 * (rows.length - 1);
+    var f = (tot > limit && tot > 0) ? limit / tot : 1;
+    rows.forEach(function (row) {
+      row._nat.forEach(function (n) { n.im.style.height = (n.h * f).toFixed(1) + 'px'; });
+    });
+
+    /* parte 2: altezza per logo, poi corsa dedotta dalla larghezza reale della sequenza */
+    var sc = LW.stageScale() || 1;
+    LANES.forEach(function (cfg) {
+      [].forEach.call(cfg.inner.querySelectorAll('img'), function (im) {
+        im.style.height = areaH(cfg.base, arOf(im)).toFixed(1) + 'px';
+      });
+      var seqW = cfg.inner.querySelector('.seq').getBoundingClientRect().width / sc;
+      var winW = cfg.inner.querySelector('.win').getBoundingClientRect().width / sc;
+      /* corsa minima perché OGNI logo entri almeno una volta nella finestra,
+         con un cap di velocità: sul LED il B/N veloce fa judder */
+      var need = Math.max(240, seqW - winW + 60);
+      cfg.travel = Math.min(need, 150 * RIB);
+    });
+  }
+
+  /* ── 3 · timeline ───────────────────────────────────────────────────────── */
+  function makeTL() {
+    [p1, p2].forEach(function (p) {
+      p.style.visibility = 'visible';                     /* misure affidabili */
+      [].forEach.call(p.querySelectorAll('.just'), function (j) {
+        LW.justify(j).forEach(function (line) {
+          var d = LW.packDeltas(line);
+          [].forEach.call(line.children, function (wd, i) { wd._dx = d[i]; });
+        });
+      });
+      p.style.visibility = 'hidden';
+    });
+
+    var t1L = p1.querySelectorAll('.ln'), t1W = p1.querySelectorAll('.wd');
+    var cells = p1.querySelectorAll('.cell img');
+    var hr = p1.querySelector('.head-rule'), hl = p1.querySelector('.head-label');
+    var t2L = p2.querySelectorAll('.ln'), t2W = p2.querySelectorAll('.wd');
+    var lrules = p2.querySelectorAll('.lane .rule');
+    var inners = LANES.map(function (c) { return c.inner; });
+    var dx = function (i, t) { return t._dx || 0; };
+
+    var tl = gsap.timeline({ repeat: -1 });
+
+    /* ══ PARTE 1 · vetrina: i main fermi, il privilegio della quiete ══ */
+    tl.set(p1, { visibility: 'visible' }, 0);
+    tl.set(t1L, { yPercent: 110 }, 0);
+    tl.set(t1W, { x: dx }, 0);
+    tl.set(hr, { scaleX: 0 }, 0);
+    tl.set(hl, { opacity: 0, y: 12 }, 0);
+    tl.set(cells, { yPercent: 110 }, 0);
+    tl.set(grid, { scale: 1 }, 0);
+
+    tl.to(t1L, { yPercent: 0, duration: 0.9, ease: 'soso', stagger: 0.12 }, 0.30);
+    tl.to(t1W, { x: 0, duration: 1.2, ease: 'expo.inOut', stagger: 0.02 }, 0.90);
+    tl.to(hr, { scaleX: 1, duration: 1.0, ease: 'power2.inOut' }, 1.15);
+    tl.to(hl, { opacity: 1, y: 0, duration: 0.7, ease: 'soso' }, 1.35);
+    /* i sei loghi salgono a cascata da sotto la propria maschera */
+    tl.to(cells, { yPercent: 0, duration: 1.0, ease: 'soso', stagger: 0.14 }, 1.75);
+    /* tenuta lunga: fermi, ma il blocco respira (mai on/off) */
+    tl.to(grid, { scale: 1.008, duration: 3.4, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 3.45);
+    /* uscita verso l'alto */
+    tl.to(cells, { yPercent: -110, duration: 0.55, ease: 'power2.in', stagger: 0.06 }, 10.30);
+    tl.to(hl, { opacity: 0, duration: 0.35, ease: 'power2.in' }, 10.40);
+    tl.to(t1L, { yPercent: -110, duration: 0.5, ease: 'power2.in', stagger: 0.08 }, 10.45);
+    tl.to(hr, { scaleX: 0, duration: 0.5, ease: 'power2.in' }, 10.45);
+    tl.set(p1, { visibility: 'hidden' }, 11.25);
+
+    /* ══ PARTE 2 · tutti gli altri, in moto ══ */
+    tl.set(p2, { visibility: 'visible' }, T2);
+    tl.set(t2L, { yPercent: 110 }, T2);
+    tl.set(t2W, { x: dx }, T2);
+    tl.set(inners, { yPercent: 110 }, T2);
+    tl.set(lrules, { scaleX: 0 }, T2);
+
+    tl.to(t2L, { yPercent: 0, duration: 0.9, ease: 'soso', stagger: 0.12 }, T2);
+    tl.to(t2W, { x: 0, duration: 1.2, ease: 'expo.inOut', stagger: 0.02 }, T2 + 0.55);
+    tl.to(lrules, { scaleX: 1, duration: 0.9, ease: 'power2.inOut', stagger: 0.16 }, T2 + 0.45);
+    tl.to(inners, { yPercent: 0, duration: 1.0, ease: 'soso', stagger: 0.28 }, T2 + 0.60);
+    /* moto continuo, lineare, sensi alternati: i nastri sono il respiro della parte 2 */
+    LANES.forEach(function (cfg) {
+      var tr = cfg.inner.querySelector('.track');
+      var a = cfg.dir > 0 ? 0 : -cfg.travel;
+      var b = cfg.dir > 0 ? -cfg.travel : 0;
+      tl.fromTo(tr, { x: a }, { x: b, duration: RIB, ease: 'none' }, T2 + 0.45);
+    });
+    tl.to(inners, { yPercent: -110, duration: 0.55, ease: 'power2.in', stagger: 0.06 }, T2 + 11.25);
+    tl.to(t2L, { yPercent: -110, duration: 0.5, ease: 'power2.in', stagger: 0.08 }, T2 + 11.35);
+    tl.to(lrules, { scaleX: 0, duration: 0.5, ease: 'power2.in', stagger: 0.05 }, T2 + 11.35);
+    tl.set(p2, { visibility: 'hidden' }, T2 + 12.00);
+    tl.to({}, { duration: 0.40 }, T2 + 12.00);   /* nero: ultimo frame ≡ primo (24.00s) */
+
+    window.TL = tl;
+    started = true;
+  }
+
+  function build() {
+    if (built) return;
+    built = true;
+    layout();
+    makeTL();
+  }
+
+  /* ── 4 · avvio: appena i loghi sono decodificati (le misure dipendono da loro) ── */
+  var imgs = [].slice.call(document.querySelectorAll('#stage img'));
+  var pending = imgs.map(function (im) {
+    if (im.decode) return im.decode().catch(function () {});
+    return new Promise(function (res) {
+      if (im.complete) res(); else { im.onload = res; im.onerror = res; }
+    });
+  });
+  Promise.all(pending).then(build);
+  setTimeout(build, 1500);   /* un logo che non decodifica non blocca la scena */
+
+  /* guardiano: setTimeout scatta anche dove rAF è strozzato (preview throttlata).
+     Se dopo 3s la timeline non è mai avanzata, porta lo stage a uno stato leggibile. */
+  setTimeout(function () {
+    if (started && window.TL && window.TL.time() > 0.5) return;   /* sta girando: non toccare */
+    try { build(); } catch (e) {}
+    if (started && window.TL) { try { window.TL.seek(6); } catch (e) {} return; }
+    p1.style.visibility = 'visible';
+    [].forEach.call(p1.querySelectorAll('.ln, .wd, .cell img'), function (el) { el.style.transform = 'none'; });
+    var r = p1.querySelector('.head-rule'), l = p1.querySelector('.head-label');
+    if (r) r.style.transform = 'none';
+    if (l) { l.style.opacity = 1; l.style.transform = 'none'; }
+  }, 3000);
+});
+</script>
+</body>
+</html>

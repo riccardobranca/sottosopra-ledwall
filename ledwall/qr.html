@@ -20,25 +20,31 @@
   #hook .just { font-size: 74px; }
 
   /* unità QR — colonna destra. Il box resta BIANCO pieno (quiet zone):
-     il QR è nero-su-bianco, MAI invertito, MAI deformato. */
+     ⚠ QR INVERTITO (bianco su nero), su richiesta: coerente col muro, ma lo
+     standard prevede moduli scuri su fondo chiaro. Gli scanner di iPhone e
+     Android recenti leggono anche l'invertito, non tutti i lettori però:
+     VA PROVATO COL TELEFONO prima del festival. Se non legge, basta togliere
+     il filter:invert(1) qui sotto e rimettere il fondo bianco. */
   #qrunit {
     width: 300px; flex-shrink: 0;
     display: flex; flex-direction: column; align-items: center;
   }
   #qrbox {
-    width: 300px; height: 300px; background: #fff;
+    width: 300px; height: 300px; background: #000;   /* invertito: fondo nero */
     position: relative; overflow: hidden;
   }
   /* qr-ingresso.svg è 370×370 SENZA viewBox: niente resize via width CSS
      (in <img> il contenuto potrebbe non scalare e uscire ritagliato).
      Lo si lascia alla dimensione intrinseca e lo si riduce via transform:
-     240/370 = 0.648649 → QR 240×240 centrato, mai deformato. */
+     240/330 = 0.7273 → QR 240×240 centrato, mai deformato. */
   #qrbox img {
+    filter: invert(1);                                /* moduli bianchi */
     display: block; position: absolute; left: 50%; top: 50%;
-    width: 370px; height: 370px;
-    transform: translate(-50%, -50%) scale(0.648649);
+    width: 330px; height: 330px;
+    transform: translate(-50%, -50%) scale(0.7273);
   }
-  #qrunit .label { margin-top: 18px; font-size: 14px; letter-spacing: 0.12em; white-space: nowrap; }
+  #qrunit .label { margin-top: 22px; font-size: 21px; letter-spacing: 0.14em;
+                   white-space: nowrap; color: var(--fg); }
 </style>
 </head>
 <body>
@@ -50,11 +56,10 @@
         <div class="just" data-text="del festival?"></div>
       </div>
       <div id="qrunit">
-        <div id="qrbox"><img src="media/qr-ingresso.svg" alt="QR verso tickets.sottosopra.com/ingresso"></div>
-        <div class="label">tickets.sottosopra.com/ingresso</div>
+        <div id="qrbox"><img src="media/qr-sottosopra.svg" alt="QR verso sottosopra.com"></div>
+        <div class="label">www.sottosopra.com</div>
       </div>
     </div>
-    <div class="meta"><span>Inquadra e scopri</span><span>Programma e biglietti</span></div>
   </div>
 </div>
 

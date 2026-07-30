@@ -6,28 +6,63 @@
 <title>Sottosopra — Ledwall · Stasera sul palco</title>
 <link rel="stylesheet" href="_shared.css">
 <style>
-  #inner { position: absolute; inset: 34px 34px 62px; display: flex; flex-direction: column; }
+  /* «STASERA SUL PALCO» — il ledger della serata, con UN gesto solo:
+     l'evidenziazione scorre riga per riga, e quando arriva su un nome quel nome
+     si APRE — le lettere si distribuiscono edge-to-edge, come un titolone del
+     brand — poi si richiude e l'evidenza scende alla riga dopo.
+     Nessuna riga è privilegiata: passa su tutte, una alla volta. */
+
+  #inner { position: absolute; inset: 34px 34px 44px; display: flex; flex-direction: column; }
 
   #head { overflow: hidden; }
   #daytitle { font-size: 72px; }
 
   #rows { flex: 1; display: flex; flex-direction: column; justify-content: space-evenly; margin-top: 18px; }
 
+  /* la maschera porta i margini negativi, non la riga: così il box invertito
+     (più largo del contenitore) non viene tagliato dall'overflow */
+  .rowmask { overflow: hidden; margin: 0 -12px; }
   .row {
+    position: relative;
     display: flex; align-items: baseline; gap: 28px;
-    padding: 10px 12px; margin: 0 -12px;
+    padding: 10px 12px;
     border-top: 2px solid var(--line);
   }
-  .row:first-child { border-top: 0; }
-  .row .time { font-size: 26px; color: var(--muted); letter-spacing: 0.06em; width: 96px; flex-shrink: 0; }
-  .row .name { font-size: 46px; text-transform: uppercase; line-height: 1; white-space: nowrap; }
-  .row .sub  { font-size: 18px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
-  .row .kind { margin-left: auto; font-size: 15px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); flex-shrink: 0; }
-  .rowmask { overflow: hidden; }
+  .rowmask:first-child .row { border-top: 0; }
 
-  /* headliner: riga invertita fissa */
-  .row.hl { background: #fff; color: #000; }
-  .row.hl .time, .row.hl .sub, .row.hl .kind { color: rgba(0,0,0,0.55); }
+  /* il blocco bianco dell'evidenza: sta SOTTO il testo e cresce da sinistra.
+     Il testo si inverte via classe, così il cambio è netto e leggibile. */
+  .hi {
+    position: absolute; inset: 0; background: var(--fg);
+    transform: scaleX(0); transform-origin: 0% 50%;
+    z-index: 0;
+  }
+  .row > span, .row > .nm { position: relative; z-index: 1; }
+
+  .row .time { font-size: 26px; color: var(--muted); letter-spacing: 0.06em; width: 96px; flex-shrink: 0; }
+  /* NIENTE margin-left:auto qui: assorbiva tutto lo spazio libero della riga,
+     così la cella del nome non cresceva e non restava aria da aprire.
+     A spingere sub e kind a destra è .nm con flex:1. */
+  .row .kind { font-size: 15px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); flex-shrink: 0; }
+  .row .sub  { font-size: 18px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
+
+  /* il nome: da chiuso è compatto; da aperto le sue lettere si distribuiscono
+     nello spazio disponibile. È un flex a larghezza piena, così il gap può
+     crescere senza toccare il layout delle altre celle. */
+  .nm { flex: 1 1 auto; min-width: 0; }
+  .nmline {
+    display: flex; align-items: baseline;
+    font-size: 46px; line-height: 1; text-transform: uppercase;
+    justify-content: flex-start;
+    gap: 0.26em;              /* spazio-parola a RIPOSO: senza, i pezzi splittati
+                                 si attaccavano («GENERICANIMAL») */
+  }
+  .nmline.chars { gap: 0.02em; }   /* parola singola: si distribuiscono le lettere */
+  .nmline .pz { white-space: nowrap; display: inline-block; }
+
+  /* stato attivo: inchiostro nero sul blocco bianco */
+  .row.on .time, .row.on .kind, .row.on .sub { color: rgba(0,0,0,0.55); }
+  .row.on .nmline { color: #000; }
 </style>
 </head>
 <body>
@@ -37,7 +72,6 @@
       <div id="head"><div class="just" id="daytitle"></div></div>
       <div id="rows"></div>
     </div>
-    <div class="meta"><span id="metaL">Sul palco stasera</span><span id="metaR"></span></div>
   </div>
 </div>
 
@@ -45,99 +79,175 @@
 <script src="vendor/CustomEase.min.js"></script>
 <script src="_shared.js"></script>
 <script>
-/* dati dal programma DEFINITIVO 2026 (programma.yaml) — Area Palco */
+/* programma DEFINITIVO 2026 — Area Palco (fonte: programma.yaml) */
 var DAYS = {
-  gio: { label: 'Giovedì 30 luglio', gates: '18:00', rows: [
+  gio: { label: 'Giovedì 30 luglio', rows: [
     { t: '20:30', n: 'Credito e piccole imprese', s: 'CNA Treviso', k: 'Talk' },
-    { t: '21:30', n: 'Andrà tutto male ma sarà bellissimo', s: 'Adrian Fartade', k: 'Talk', h: true },
+    { t: '21:30', n: 'Andrà tutto male ma sarà bellissimo', s: 'Adrian Fartade', k: 'Talk' },
   ]},
-  ven: { label: 'Venerdì 31 luglio', gates: '18:00', rows: [
+  ven: { label: 'Venerdì 31 luglio', rows: [
     { t: '19:00', n: 'Sottosopra Impresa', s: 'Banca delle Terre Venete', k: 'Talk' },
     { t: '20:30', n: 'Degheįo', k: 'Live' },
-    { t: '21:30', n: 'Generic Animal', k: 'Live', h: true },
+    { t: '21:30', n: 'Generic Animal', k: 'Live' },
     { t: '22:30', n: 'Krano', k: 'Live' },
     { t: '23:30', n: 'Cavalli Mongoli', k: 'Live' },
   ]},
-  sab: { label: 'Sabato 1 agosto', gates: '16:00', rows: [
+  sab: { label: 'Sabato 1 agosto', rows: [
     { t: '18:30', n: 'From Disco To Disco', s: 'Mario · Munstac B2B Gaz', k: 'DJ Set' },
     { t: '21:00', n: 'Popa', k: 'Live' },
-    { t: '22:00', n: 'Vendredi sur Mer', k: 'Live', h: true },
+    { t: '22:00', n: 'Vendredi sur Mer', k: 'Live' },
     { t: '23:00', n: 'Faccianuvola', k: 'Live' },
   ]},
-  dom: { label: 'Domenica 2 agosto', gates: '10:00', rows: [
+  dom: { label: 'Domenica 2 agosto', rows: [
     { t: '18:00', n: 'Hip-hop e alieni: siamo in pericolo?', s: 'Dr. Pira e Treviso Comic Book', k: 'Show' },
     { t: '19:00', n: 'Libri Brutti', s: 'Auroro Borealo', k: 'Show' },
     { t: '20:00', n: 'Jesse the Faccio', k: 'Live' },
     { t: '21:00', n: 'Auroro Borealo', k: 'Live' },
-    { t: '22:30', n: 'Ex-Otago', k: 'Live', h: true },
+    { t: '22:30', n: 'Ex-Otago', k: 'Live' },
   ]},
 };
 
-/* giorno da ?day=gio|ven|sab|dom, altrimenti dalla data reale, fallback ven */
 function pickDay() {
   var q = new URLSearchParams(location.search).get('day');
   if (q && DAYS[q]) return q;
-  var iso = new Date().toISOString().slice(5, 10);
+  var d = new Date();
+  var iso = String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   return { '07-30': 'gio', '07-31': 'ven', '08-01': 'sab', '08-02': 'dom' }[iso] || 'ven';
 }
 
 LW.ready(function () {
   var day = DAYS[pickDay()];
   var esc = function (s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;'); };
+  var sc = LW.stageScale() || 1;
 
   document.getElementById('daytitle').setAttribute('data-text', day.label);
-  document.getElementById('metaR').textContent = 'Cancelli ore ' + day.gates;
 
   var rowsEl = document.getElementById('rows');
   rowsEl.innerHTML = day.rows.map(function (r) {
-    return '<div class="rowmask"><div class="row' + (r.h ? ' hl' : '') + '">' +
+    var pezzi = r.n.split(' ').map(function (w) {
+      return '<span class="pz">' + esc(w) + '</span>';
+    }).join('');
+    return '<div class="rowmask"><div class="row">' +
+      '<div class="hi"></div>' +
       '<span class="time">' + r.t + '</span>' +
-      '<span class="name">' + esc(r.n) + '</span>' +
+      '<span class="nm"><span class="nmline">' + pezzi + '</span></span>' +
       (r.s ? '<span class="sub">' + esc(r.s) + '</span>' : '') +
       '<span class="kind">' + r.k + '</span>' +
     '</div></div>';
   }).join('');
 
-  /* titoli troppo larghi → riduci il corpo finché entra (niente ellissi sul ledwall) */
-  [].slice.call(rowsEl.querySelectorAll('.row')).forEach(function (row) {
-    var name = row.querySelector('.name');
-    var fs = 46, sc = LW.stageScale();
-    while (row.scrollWidth * 1 > row.clientWidth && fs > 22) {
-      fs -= 2; name.style.fontSize = fs + 'px';
+  var rows = [].slice.call(rowsEl.querySelectorAll('.row'));
+
+  /* ① parola singola → si distribuiscono le LETTERE (come i titoloni del brand) */
+  rows.forEach(function (row) {
+    var line = row.querySelector('.nmline');
+    var pz = line.querySelectorAll('.pz');
+    if (pz.length === 1) {
+      var w = pz[0].textContent;
+      line.classList.add('chars');
+      line.innerHTML = w.split('').map(function (c) {
+        return '<span class="pz">' + esc(c) + '</span>';
+      }).join('');
     }
   });
 
-  var titleLines = LW.justify(document.getElementById('daytitle'));
-  var rows = [].slice.call(rowsEl.querySelectorAll('.row'));
-  var normal = rows.filter(function (r) { return !r.classList.contains('hl'); });
+  /* ② fit: il nome deve stare NELLA SUA CELLA, senza mai finire sotto il
+     sottotitolo o l'etichetta di destra. Misuro l'inchiostro contro la
+     larghezza della cella — `scrollWidth` non basta, perché .nm è flex:1 e il
+     contenuto trabocca senza allargare la riga (i nomi lunghi finivano sopra
+     «BANCA DELLE TERRE VENETE»).
+     ⚠ Misure con offsetWidth, MAI getBoundingClientRect: quest'ultimo torna 0
+     quando la pagina non è dipinta (finestra nascosta, scheda in background),
+     e il calcolo dell'aria dava zero — il nome non si apriva mai. */
+  rows.forEach(function (row) {
+    var nm = row.querySelector('.nm');
+    var line = row.querySelector('.nmline');
+    function ink() {
+      var pz = line.querySelectorAll('.pz'), s = 0;
+      for (var i = 0; i < pz.length; i++) s += pz[i].offsetWidth;
+      var g = parseFloat(getComputedStyle(line).gap) || 0;
+      return s + g * Math.max(0, pz.length - 1);
+    }
+    var fs = 46, guard = 0;
+    while (ink() > nm.offsetWidth - 8 && fs > 20 && guard++ < 30) {
+      fs -= 2; line.style.fontSize = fs + 'px';
+    }
+  });
 
+  /* ③ quanta aria si prende il nome quando si apre: lo spazio libero nella sua
+     cella, ripartito fra i pezzi. Misurato a riposo, così l'apertura non
+     ricalcola niente e non muove le celle vicine. */
+  rows.forEach(function (row) {
+    var nm   = row.querySelector('.nm');
+    var line = row.querySelector('.nmline');
+    var pz   = [].slice.call(line.querySelectorAll('.pz'));
+    var inkW = pz.reduce(function (s, p) { return s + p.offsetWidth; }, 0);
+    var g    = parseFloat(getComputedStyle(line).gap) || 0;
+    var used = inkW + g * Math.max(0, pz.length - 1);
+    var gaps = Math.max(1, pz.length - 1);
+    row._pz  = pz;
+    row._gap = Math.max(0, nm.offsetWidth - used - 6) / gaps;   /* aria extra per gap */
+  });
+
+  var titleLines = LW.justify(document.getElementById('daytitle'));
+
+  /* ── timeline: intro, poi l'evidenza scorre su tutte le righe, poi uscita ── */
+  var OPEN = 0.55, HOLD = 1.5, CLOSE = 0.5;     /* apertura · tenuta · chiusura */
   var tl = gsap.timeline({ repeat: -1 });
 
-  /* intro */
   tl.set(titleLines, { yPercent: 110 });
   tl.set(rows, { yPercent: 110 });
+  tl.set(rows.map(function (r) { return r.querySelector('.hi'); }), { scaleX: 0 });
+  rows.forEach(function (r) { gsap.set(r._pz, { x: 0 }); });
+
   tl.to(titleLines, { yPercent: 0, duration: 0.9, ease: 'soso' });
   tl.to(rows, { yPercent: 0, duration: 0.75, ease: 'power3.out', stagger: 0.09 }, '-=0.45');
+  tl.to({}, { duration: 0.6 });
 
-  /* sweep: l'evidenza scorre riga per riga (la headliner resta invertita fissa) */
-  tl.to({}, { duration: 1.2 });
-  for (var pass = 0; pass < 2; pass++) {
-    normal.forEach(function (row) {
-      var parts = row.querySelectorAll('.time,.sub,.kind');
-      tl.to(row, { backgroundColor: '#ffffff', color: '#000000', duration: 0.18, ease: 'power1.in' });
-      tl.to(parts, { color: 'rgba(0,0,0,0.55)', duration: 0.18 }, '<');
-      tl.to(row, { backgroundColor: 'rgba(255,255,255,0)', color: '#ffffff', duration: 0.3, ease: 'power1.out' }, '+=0.85');
-      tl.to(parts, { color: '#8a8a8a', duration: 0.3 }, '<');
-    });
-    tl.to({}, { duration: 1.6 });
-  }
+  /* il passaggio dell'evidenza, riga per riga */
+  rows.forEach(function (row) {
+    var hi = row.querySelector('.hi');
 
-  /* uscita */
+    /* il blocco bianco cresce da sinistra; il testo si inverte SOLO quando il
+       bianco ha finito di coprire la riga — invertendolo a metà corsa, la parte
+       di nome ancora fuori dal blocco restava nera su nero e spariva.
+       L'inversione è un TWEEN, non una callback: le callback non vengono
+       eseguite quando si scorre la timeline a mano, e il render frame-per-frame
+       del video le saltava del tutto. */
+    var nmline = row.querySelector('.nmline');
+    var minori = row.querySelectorAll('.time,.kind,.sub');
+    tl.to(hi, { scaleX: 1, duration: OPEN, ease: 'soso' });
+    tl.to(nmline, { color: '#000000', duration: 0.12, ease: 'none' });
+    tl.to(minori, { color: 'rgba(0,0,0,0.55)', duration: 0.12, ease: 'none' }, '<');
+
+    /* …e il nome si apre: ogni pezzo scivola alla sua posizione distribuita */
+    tl.to(row._pz, {
+      x: function (i) { return i * row._gap; },
+      duration: OPEN + 0.25, ease: 'expo.out'
+    }, '-=' + OPEN);
+
+    tl.to({}, { duration: HOLD });
+
+    /* si richiude: prima il nome torna compatto, poi il bianco si ritira
+       verso destra (esce dalla parte opposta a quella da cui è entrato) */
+    tl.to(row._pz, { x: 0, duration: CLOSE + 0.15, ease: 'power2.inOut' });
+    /* …e il testo torna bianco PRIMA che il blocco si ritiri, per lo stesso
+       motivo: mai inchiostro nero fuori dal bianco. */
+    tl.to(nmline, { color: '#ffffff', duration: 0.12, ease: 'none' });
+    tl.to(minori, { color: '#8a8a8a', duration: 0.12, ease: 'none' }, '<');
+    tl.to(hi, { scaleX: 0, duration: CLOSE, ease: 'power2.in', transformOrigin: '100% 50%' });
+    tl.set(hi, { transformOrigin: '0% 50%' });
+  });
+
+  tl.to({}, { duration: 0.6 });
   tl.to(rows, { yPercent: -110, duration: 0.5, ease: 'power2.in', stagger: 0.05 });
   tl.to(titleLines, { yPercent: -110, duration: 0.5, ease: 'power2.in' }, '-=0.3');
   tl.to({}, { duration: 0.6 });
 
-  window.TL = tl; /* per scrub/verifica deterministica */
+  window.TL = tl;
+
+  /* guardiano: col rAF strozzato la scena resterebbe vuota */
+  setTimeout(function () { if (tl.time() < 0.5) tl.progress(0.35); }, 3000);
 });
 </script>
 </body>
