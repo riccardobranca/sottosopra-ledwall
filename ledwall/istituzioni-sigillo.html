@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<title>Sottosopra — Ledwall · Istituzioni · Sigillo</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  /* «SIGILLO» — la scena del patrocinio, impianto centrato e solenne.
+     Un ente per volta. Il logo non "arriva": si IMPRIME dentro una cornice
+     che si posa come un timbro. Le diciture ufficiali sono riportate alla
+     lettera e restano in campo a lungo: qui il gesto è la compostezza.
+     Geometria fissa e identica per i due enti (la cornice non si muove mai
+     di un pixel fra un ente e l'altro: cambia solo ciò che contiene). */
+
+  .card { position: absolute; inset: 0; visibility: hidden; }
+
+  /* ── la dicitura: fascia sopra il sigillo, altezza FISSA di due righe.
+        Con una riga sola il testo si appoggia in basso → il distacco dalla
+        cornice resta identico per entrambi gli enti. ── */
+  .dic {
+    position: absolute; left: 34px; right: 34px; top: 100px; height: 64px;
+    display: flex; align-items: flex-end; justify-content: center;
+  }
+  .dtxt { max-width: 880px; text-align: center; }
+  .dmask { display: block; overflow: hidden; }   /* masked line reveal */
+  .dline {
+    display: block;
+    font-size: 20px; line-height: 32px; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--muted);
+  }
+
+  /* ── il sigillo: cornice, non blocco pieno (il bianco pieno spara luce
+        sul palco). Bordo 3px: sotto i 3px il filo sfarfalla sul 2.9mm. ── */
+  .seal {
+    position: absolute; top: 208px; left: 50%; margin-left: -280px;
+    width: 560px; height: 300px;               /* interno 554 × 294 */
+    border: 3px solid var(--fg); background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .lgmask { display: block; overflow: hidden; line-height: 0; }
+  .seal img {
+    display: block;
+    filter: invert(1);        /* i loghi sono grigi su bianco → bianco su nero */
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage">
+
+    <!-- ① Comune — logo verticale (414×240): h 150 → 259 px di larghezza -->
+    <div class="card">
+      <div class="dic">
+        <div class="label dtxt">
+          <span class="dmask"><span class="dline">Con il Patrocinio di</span></span>
+        </div>
+      </div>
+      <div class="seal">
+        <span class="lgmask"><img class="logo" src="logos/citta-castelfranco.png"
+              alt="Città di Castelfranco Veneto" style="height:150px"></span>
+      </div>
+    </div>
+
+    <!-- ② Camera di commercio — logo orizzontale (720×139): h 78 → 404 px.
+         Dicitura ufficiale, integrale, spezzata su due righe centrate. -->
+    <div class="card">
+      <div class="dic">
+        <div class="label dtxt">
+          <span class="dmask"><span class="dline">Progetto realizzato in collaborazione e con il contributo</span></span>
+          <span class="dmask"><span class="dline">della Camera di commercio di Treviso-Belluno</span></span>
+        </div>
+      </div>
+      <div class="seal">
+        <span class="lgmask"><img class="logo" src="logos/camera-commercio.png"
+              alt="Camera di commercio di Treviso-Belluno" style="height:78px"></span>
+      </div>
+    </div>
+
+    <div class="meta"><span>Sottosopra APS</span><span>Dal 2017</span></div>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script src="vendor/CustomEase.min.js"></script>
+<script src="_shared.js"></script>
+<script>
+LW.ready(function () {
+  var cards = [].slice.call(document.querySelectorAll('.card'));
+  var sc = LW.stageScale() || 1;
+  var LH = 32;                 /* line-height della dicitura, in px CSS */
+
+  cards.forEach(function (card) {
+
+    /* a) la dicitura deve stare su UNA riga per blocco: se il font rendesse
+          più largo del previsto, la riga in più verrebbe tagliata dalla
+          maschera. Si rimpicciolisce finché ogni blocco è una riga sola.
+          Il line-height resta 32px → la geometria non si muove mai. */
+    var lines = [].slice.call(card.querySelectorAll('.dline'));
+    var fs = 20, guard = 0;
+    function wraps() {
+      return lines.some(function (l) {
+        return l.getBoundingClientRect().height / sc > LH * 1.5;
+      });
+    }
+    while (wraps() && fs > 13 && guard++ < 20) {
+      fs -= 1;
+      lines.forEach(function (l) { l.style.fontSize = fs + 'px'; });
+    }
+
+    /* b) rete di sicurezza sul logo: mai deformato, mai ritagliato.
+          Se sfora l'interno della cornice si abbassa l'altezza (la
+          larghezza segue da sola). Con i valori attuali non scatta. */
+    var img = card.querySelector('.logo');
+    var MAXW = 470, MAXH = 230, h = parseFloat(img.style.height), g2 = 0;
+    while (g2++ < 60 && h > 40 &&
+           (img.getBoundingClientRect().width / sc > MAXW || h > MAXH)) {
+      h -= 4; img.style.height = h + 'px';
+    }
+  });
+
+  var tl = gsap.timeline({ repeat: -1 });
+
+  cards.forEach(function (card) {
+    var seal  = card.querySelector('.seal');
+    var logo  = card.querySelector('.logo');
+    var lines = [].slice.call(card.querySelectorAll('.dline'));
+
+    /* stato di partenza esplicito su TUTTO ciò che si anima:
+       così l'ultimo frame del loop torna identico al primo */
+    tl.set(card,  { visibility: 'visible', opacity: 1, scale: 1 });
+    tl.set(seal,  { opacity: 0, scale: 1.06 });
+    tl.set(logo,  { yPercent: 110 });
+    tl.set(lines, { yPercent: 110 });
+
+    /* 1 · il sigillo si imprime — si posa, non rimbalza */
+    tl.to(seal, { opacity: 1, scale: 1, duration: 0.7, ease: 'soso' });
+    /* 2 · il logo emerge da sotto, dentro la cornice appena posata */
+    tl.to(logo, { yPercent: 0, duration: 0.85, ease: 'soso' }, '-=0.1');
+    /* 3 · la dicitura per ultima: si legge il sigillo, poi lo si nomina */
+    tl.to(lines, { yPercent: 0, duration: 0.75, ease: 'soso', stagger: 0.09 }, '-=0.45');
+    /* 4 · tenuta lunga: 7,5s per leggere con calma. La cornice respira
+           appena — la scena non è mai del tutto ferma, e torna esatta a 1 */
+    tl.to(seal, { scale: 1.006, duration: 3.75, ease: 'sine.inOut', yoyo: true, repeat: 1 });
+    /* 5 · uscita: il sigillo si ritira di un soffio e si spegne */
+    tl.to(card, { opacity: 0, scale: 0.97, duration: 0.7, ease: 'power2.in' });
+    tl.set(card, { visibility: 'hidden' });
+    tl.to({}, { duration: 0.9 });   /* nero fra i due enti (e prima del loop) */
+  });
+
+  window.TL = tl;   /* ciclo ≈ 21,9s — per scrub/verifica deterministica */
+});
+
+/* ── guardiano ──────────────────────────────────────────────────────────
+   Se il rAF viene strozzato (anteprima in background, player lento) la
+   timeline non avanza: i sets iniziali non partono e la scena resta nera.
+   Dopo 3s, se la timeline non si è mossa, si forza il primo sigillo al suo
+   stato di tenuta. Non dipende da GSAP: solo stili inline. */
+setTimeout(function () {
+  if (window.TL && window.TL.time() > 0.2) return;   /* sta girando: nulla da fare */
+  var card = document.querySelector('.card');
+  if (!card) return;
+  card.style.visibility = 'visible';
+  card.style.opacity = '1';
+  card.style.transform = 'none';
+  var seal = card.querySelector('.seal');
+  if (seal) { seal.style.opacity = '1'; seal.style.transform = 'none'; }
+  [].slice.call(card.querySelectorAll('.logo, .dline')).forEach(function (el) {
+    el.style.transform = 'none';
+  });
+}, 3000);
+</script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<title>Sottosopra — Social · Grafiche biglietti</title>
+<style>
+  @font-face { font-family: 'SoSo26'; src: url('fonts/SoSo26.woff2') format('woff2'); font-display: block; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #f4f4f4; color: #000; font-family: 'SoSo26', sans-serif; padding: 40px; }
+  h1 { font-size: clamp(28px, 4vw, 52px); text-transform: uppercase; font-feature-settings: "ss07","ss08","liga","calt"; }
+  .sub { color: #6B6B6B; font-size: 14px; letter-spacing: 0.14em; text-transform: uppercase; margin: 8px 0 22px; }
+  .switch { margin-bottom: 30px; display: flex; gap: 10px; align-items: center; }
+  .switch a {
+    display: inline-block; padding: 10px 20px; border: 2px solid #000; color: #000;
+    text-decoration: none; font-size: 14px; letter-spacing: 0.14em; text-transform: uppercase;
+  }
+  .switch a.on { background: #000; color: #fff; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 26px; }
+  a.card { display: block; text-decoration: none; color: #000; }
+  .thumb { position: relative; width: 100%; overflow: hidden; background: #fff; border: 2px solid #ddd; }
+  .thumb iframe { border: 0; transform-origin: top left; position: absolute; top: 0; left: 0; pointer-events: none; }
+  .name { display: flex; justify-content: space-between; padding: 10px 2px; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; }
+  .name .k { color: #6B6B6B; }
+</style>
+</head>
+<body>
+<h1>Grafiche social — biglietti</h1>
+<div class="sub">Barra di riempimento per serata · clic per aprire a grandezza piena</div>
+<div class="switch" id="switch"></div>
+<div class="grid" id="grid"></div>
+<script>
+var SCENES = [
+  ['riempimento.html', 'Riempimento',    'le tre barre insieme'],
+  ['tre-barre.html',   'Tre barre',      'variante a cascata'],
+  ['barra-singola.html','Una per volta',  'tre schermate'],
+  ['colonne.html',     'Istogramma',     'colonne verticali'],
+  ['termometro.html',  'Termometro',     'il numero si riempie'],
+  ['ledger.html',      'Ledger',         'registro editoriale'],
+];
+var fmt = new URLSearchParams(location.search).get('fmt') === 'post' ? 'post' : 'reel';
+var H = fmt === 'post' ? 1350 : 1920;
+
+document.getElementById('switch').innerHTML =
+  '<a href="?fmt=reel" class="' + (fmt === 'reel' ? 'on' : '') + '">Reel 1080×1920</a>' +
+  '<a href="?fmt=post" class="' + (fmt === 'post' ? 'on' : '') + '">Post 1080×1350</a>' +
+  '<a href="?fmt=' + fmt + '&safe=1" style="border-style:dashed">Safe area</a>';
+
+var safe = new URLSearchParams(location.search).get('safe') === '1' ? '&safe=1' : '';
+var grid = document.getElementById('grid');
+grid.innerHTML = SCENES.map(function (s) {
+  var url = s[0] + '?fmt=' + fmt + safe;
+  return '<a class="card" href="' + url + '">' +
+    '<div class="thumb" style="aspect-ratio:1080/' + H + '">' +
+      '<iframe data-src="' + url + '" style="width:1080px;height:' + H + 'px"></iframe>' +
+    '</div>' +
+    '<div class="name"><span>' + s[1] + '</span><span class="k">' + s[2] + '</span></div></a>';
+}).join('');
+
+function scaleThumbs() {
+  document.querySelectorAll('.thumb').forEach(function (t) {
+    t.querySelector('iframe').style.transform = 'scale(' + (t.clientWidth / 1080) + ')';
+  });
+}
+/* le scene si accendono solo quando entrano in vista: sei video animati insieme
+   mettono in ginocchio il browser */
+var io = new IntersectionObserver(function (es) {
+  es.forEach(function (e) {
+    var f = e.target.querySelector('iframe');
+    if (e.isIntersecting) { if (!f.src) f.src = f.dataset.src; }
+    else if (f.src) { f.removeAttribute('src'); }
+  });
+}, { rootMargin: '300px' });
+document.querySelectorAll('.card').forEach(function (c) { io.observe(c); });
+addEventListener('resize', scaleThumbs);
+addEventListener('load', scaleThumbs);
+scaleThumbs();
+</script>
+</body>
+</html>

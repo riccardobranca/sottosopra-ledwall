@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<title>Sottosopra — Ledwall · Capovolgi</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  #flipper {
+    position: absolute; inset: 40px 34px 70px;
+    display: flex; flex-direction: column; justify-content: center;
+    will-change: transform;
+  }
+  #claim { font-size: 150px; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage">
+    <div id="flipper">
+      <div class="just" id="claim" data-text="Cambia il punto di vista"></div>
+    </div>
+    <div class="meta"><span>Sottosopra</span><span>Dal 2017</span></div>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script src="vendor/CustomEase.min.js"></script>
+<script src="_shared.js"></script>
+<script>
+LW.ready(function () {
+  var flipper = document.getElementById('flipper');
+  var lines = LW.justify(document.getElementById('claim'));
+  var words = [].slice.call(flipper.querySelectorAll('.wd'));
+  lines.forEach(function (line) {
+    var deltas = LW.packDeltas(line);
+    [].slice.call(line.children).forEach(function (wd, i) { wd._dx = deltas[i]; });
+  });
+
+  var tl = gsap.timeline({ repeat: -1 });
+
+  /* entrata: righe mascherate + aria che si apre */
+  tl.set(lines, { yPercent: 110 });
+  tl.set(words, { x: function (i, t) { return t._dx || 0; } });
+  tl.to(lines, { yPercent: 0, duration: 0.85, ease: 'soso', stagger: 0.11 });
+  tl.to(words, { x: 0, duration: 1.15, ease: 'expo.inOut', stagger: 0.012 }, '-=0.55');
+
+  /* il gesto: capovolgersi. Respira, si gira, resta sottosopra, torna. */
+  tl.to(flipper, { scale: 1.008, duration: 2.25, ease: 'sine.inOut', yoyo: true, repeat: 1 });
+  tl.to(flipper, { scale: 0.93, duration: 0.45, ease: 'power2.inOut' });
+  tl.to(flipper, { rotation: 180, duration: 1.5, ease: 'power3.inOut' }, '-=0.15');
+  tl.to(flipper, { scale: 1, duration: 0.45, ease: 'power2.inOut' }, '-=0.35');
+  tl.to(flipper, { scale: 1.008, duration: 2.25, ease: 'sine.inOut', yoyo: true, repeat: 1 });
+  tl.to(flipper, { scale: 0.93, duration: 0.45, ease: 'power2.inOut' });
+  tl.to(flipper, { rotation: 360, duration: 1.5, ease: 'power3.inOut' }, '-=0.15');
+  tl.to(flipper, { scale: 1, duration: 0.45, ease: 'power2.inOut' }, '-=0.35');
+  tl.set(flipper, { rotation: 0 });
+
+  window.TL = tl; /* per scrub/verifica deterministica */
+});
+</script>
+</body>
+</html>

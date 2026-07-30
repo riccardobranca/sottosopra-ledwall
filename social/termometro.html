@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<title>Sottosopra — Social · Termometro (il numero che si riempie)</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  /* ── IL NUMERO CHE SI RIEMPIE ──────────────────────────────────────────
+     Una schermata per serata. Il numero del giorno, gigantissimo, disegnato
+     in contorno: dentro il contorno il nero sale fino alla percentuale.
+     Non c'è nessuna barra: la barra È il numero.
+     Il riempimento è puro transform, senza clip-path e senza schiacciare il
+     glifo: la finestra (.mk, overflow hidden) scende di d, il numero pieno
+     dentro (.sl) risale di -d. La finestra si sposta, l'inchiostro sta fermo
+     → il taglio orizzontale sale dal basso, pixel-esatto (stesso ease, stessa
+     durata, valori esattamente opposti e arrotondati simmetricamente). */
+
+  /* Il segno % : il woff2 caricato da _shared.css è il subset del sito e
+     potrebbe non contenerlo (U+0025); senza questa riga il browser
+     ripiegherebbe su un sans di sistema proprio dentro il dato. Per quel
+     SOLO carattere si usa il file completo del brand kit — stesso disegno,
+     nessuna differenza visiva, e si scarica solo perché il % c'è davvero. */
+  @font-face {
+    font-family: 'SoSo26';
+    src: url('fonts/SoSo26.woff') format('woff');
+    unicode-range: U+0025;
+    font-display: block;
+  }
+
+  .scene { position: absolute; display: flex; flex-direction: column; }
+  /* su Reel il contenuto vivo sta tra y=220 e y=1500, lontano dalla colonna
+     dei pulsanti di Instagram (180px a destra) */
+  body.reel .scene { top: 220px; left: 80px; right: 180px; bottom: 420px; }
+  body.post .scene { top: 80px; left: 80px; right: 80px; bottom: 80px; }
+
+  .rule { background: var(--fg); height: 5px; width: 100%; }
+
+  /* ── testa: come si chiama il dato + wordmark discreto ── */
+  .head { flex: 0 0 auto; }
+  .head .top { display: flex; align-items: center; justify-content: space-between; }
+  .head .logo { display: block; flex: 0 0 auto; }
+  body.reel .head .top { margin-bottom: 24px; }
+  body.post .head .top { margin-bottom: 20px; }
+
+  /* ── la zona delle carte: le tre serate, una sopra l'altra ── */
+  .cards { flex: 1 1 auto; position: relative; }
+  .card {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; justify-content: center;
+    visibility: hidden;
+  }
+
+  .stack { position: relative; width: 100%; flex: 0 0 auto; }
+
+  .num { position: absolute; left: 0; top: 0; line-height: 1; white-space: nowrap; }
+  .num .ol { display: block; color: transparent; }          /* contorno */
+  .num .mk { position: absolute; left: 0; right: 0; overflow: hidden; }  /* finestra */
+  .num .sl { position: absolute; left: 0; width: 100%; display: block; color: var(--fg); }
+
+  /* la percentuale, accanto al numero: rullo di cifre in puro transform */
+  .side { position: absolute; right: 0; }
+  .rollrow { display: flex; align-items: flex-end; }
+  .roller { overflow: hidden; flex: 0 0 auto; }
+  .roller .strip { display: block; }
+  .roller .dgt {
+    display: block; text-align: right;
+    font-feature-settings: "ss07", "ss08", "liga", "calt", "tnum";
+  }
+  .pctsign { flex: 0 0 auto; }
+
+  /* ── chi suona ── */
+  .who { flex: 0 0 auto; }
+  .who .lnmask { display: block; overflow: hidden; }
+  .who .dayln { display: block; line-height: 1.2; }
+  .who .chi { color: var(--fg); }
+
+  /* ── piede: date, luogo, CTA (dentro la safe area) ── */
+  .foot { flex: 0 0 auto; }
+  .ft-dt { color: var(--fg); white-space: nowrap; }
+  .ft-lg { white-space: nowrap; }
+  body.reel .ft-rule { margin-bottom: 26px; }
+  body.post .ft-rule { margin-bottom: 20px; }
+  body.reel .ft-dt { margin-bottom: 10px; }
+  body.post .ft-dt { margin-bottom: 8px; }
+  body.reel .ft-lg { margin-bottom: 30px; }
+  body.post .ft-lg { margin-bottom: 24px; }
+
+  /* fasce coperte dall'interfaccia di Instagram (?safe=1) */
+  body.reel .s-top { top: 0; height: 220px; }
+  body.reel .s-bot { bottom: 0; height: 420px; }
+  body.post .s-top { top: 0; height: 80px; }
+  body.post .s-bot { bottom: 0; height: 80px; }
+</style>
+</head>
+<body class="reel">
+<div id="wrap">
+  <div id="stage">
+    <div class="scene">
+
+      <div class="head">
+        <div class="top">
+          <span class="label hd-lab"></span>
+          <img class="logo" src="media/sottosopra-logo-black.png" alt="Sottosopra">
+        </div>
+        <div class="rule hd-rule"></div>
+      </div>
+
+      <div class="cards"></div>
+
+      <div class="foot">
+        <div class="rule ft-rule"></div>
+        <div class="label ft-dt"></div>
+        <div class="label ft-lg"></div>
+        <div class="just ft-cta"></div>
+      </div>
+
+    </div>
+    <div class="safe"><i class="s-top"></i><i class="s-bot"></i></div>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script src="vendor/CustomEase.min.js"></script>
+<script src="_shared.js"></script>
+<script src="_dati.js"></script>
+<script>
+SG.ready(function () {
+  /* Il font PRIMA di misurare. Qui la pagina nasce senza testo (lo scrive
+     tutto il JS): quindi al primo layout nessuno ha ancora chiesto SoSo26 e
+     `document.fonts.ready` può risolvere prima che il font esista. Misurare
+     lì significherebbe prendere le metriche del font di sistema — e il
+     riempimento cadrebbe fuori dal glifo. Lo carichiamo esplicitamente,
+     segno % compreso (vive in un @font-face suo). */
+  var launched = false;
+  function go() { if (!launched) { launched = true; build(); } }
+  if (document.fonts && document.fonts.load) {
+    Promise.all([
+      document.fonts.load('100px SoSo26', '0123456789%'),
+      document.fonts.load('100px SoSo26', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ·.')
+    ]).then(go, go);
+    setTimeout(go, 1200);                   /* mai bloccati da una promessa */
+  } else go();
+
+function build() {
+  var D = window.DATI, isP = SG.isPost;
+
+  /* corpi per formato: su 4:5 c'è meno aria in verticale */
+  var K = isP
+    ? { numFS: 400, rollFS: 88,  chiFS: 74, ctaFS: 44, dtFS: 25, lgFS: 21, labFS: 26, dayFS: 26, logoH: 30, GAP: 28 }
+    : { numFS: 500, rollFS: 104, chiFS: 86, ctaFS: 54, dtFS: 28, lgFS: 24, labFS: 30, dayFS: 30, logoH: 34, GAP: 32 };
+
+  var scene = document.querySelector('.scene');
+  var CW = scene.clientWidth;               /* larghezza reale della colonna */
+
+  /* ── metriche del font: servono per far coincidere il riempimento con
+        l'INCHIOSTRO del glifo (non con la riga di testo, che è più alta) ── */
+  function fontMetrics(fs) {
+    var c = document.createElement('canvas').getContext('2d');
+    c.font = fs + 'px SoSo26, sans-serif';
+    var m = c.measureText('0123456789');
+    var A = m.fontBoundingBoxAscent, Dd = m.fontBoundingBoxDescent;
+    var a = m.actualBoundingBoxAscent, d = m.actualBoundingBoxDescent;
+    if (!(A > 0)) { A = fs * 0.80; Dd = fs * 0.20; }        /* rete di sicurezza */
+    if (!(Dd >= 0)) Dd = fs * 0.20;
+    if (!(a > 0)) { a = fs * 0.72; d = 0; }
+    if (!(d >= 0)) d = 0;
+    return { A: A, D: Dd, a: a, d: d };
+  }
+  function baselineIn(boxH, mm) { return (boxH - (mm.A + mm.D)) / 2 + mm.A; }
+
+  /* etichette a riga unica: se sforano, rientrano da sole */
+  function fitLabel(el, txt, fs) {
+    el.textContent = txt;
+    el.style.fontSize = fs + 'px';
+    var w = el.scrollWidth;
+    if (w > CW) el.style.fontSize = Math.floor(fs * CW / w) + 'px';
+  }
+
+  /* ── shell statica (testa e piede non si animano mai: così il loop
+        si richiude senza scatti e il messaggio è leggibile dal frame 0) ── */
+  var hdLab = document.querySelector('.hd-lab');
+  hdLab.textContent = D.metrica;
+  hdLab.style.fontSize = K.labFS + 'px';
+  document.querySelector('.head .logo').style.height = K.logoH + 'px';
+  fitLabel(document.querySelector('.ft-dt'), D.date, K.dtFS);
+  fitLabel(document.querySelector('.ft-lg'), D.luogo, K.lgFS);
+
+  /* ── le tre carte, costruite dai dati ── */
+  var rowH = Math.round(K.rollFS * 1.16);   /* finestra del rullo = una cifra */
+  var dyn = document.createElement('style');
+  dyn.textContent =
+      '.rollrow{font-size:' + K.rollFS + 'px;gap:' + Math.round(K.rollFS * 0.08) + 'px}'
+    + '.roller{height:' + rowH + 'px}'
+    + '.dgt{height:' + rowH + 'px;line-height:' + rowH + 'px}'
+    + '.pctsign{line-height:' + rowH + 'px}'
+    + '.dayln{font-size:' + K.dayFS + 'px}'
+    + '.who{margin-top:' + (isP ? 44 : 56) + 'px}'
+    + '.who .lnmask{margin-bottom:' + (isP ? 10 : 14) + 'px}';
+  document.head.appendChild(dyn);
+
+  var host = document.querySelector('.cards');
+  var cards = [];
+
+  D.serate.forEach(function (s) {
+    var pct = Math.max(0, Math.min(100, Math.round(s.pct)));
+    var rows = '';
+    for (var v = 0; v <= pct; v++) rows += '<span class="dgt">' + (v < 10 ? '0' + v : v) + '</span>';
+
+    var el = document.createElement('div');
+    el.className = 'card';
+    el.innerHTML =
+        '<div class="stack">'
+      +   '<div class="num"><span class="ol">' + s.d + '</span>'
+      +     '<span class="mk"><span class="sl">' + s.d + '</span></span></div>'
+      +   '<div class="side"><div class="rollrow">'
+      +     '<div class="roller"><span class="strip">' + rows + '</span></div>'
+      +     '<span class="pctsign">%</span>'
+      +   '</div></div>'
+      + '</div>'
+      + '<div class="who">'
+      +   '<span class="lnmask"><span class="dayln label">' + s.g + ' ' + s.d + ' ' + s.mese + '</span></span>'
+      +   '<div class="just chi"></div>'
+      + '</div>';
+    host.appendChild(el);
+
+    var c = {
+      el: el, pct: pct,
+      stack: el.querySelector('.stack'),
+      num: el.querySelector('.num'),
+      ol: el.querySelector('.ol'),
+      mk: el.querySelector('.mk'),
+      sl: el.querySelector('.sl'),
+      side: el.querySelector('.side'),
+      strip: el.querySelector('.strip'),
+      dayln: el.querySelector('.dayln'),
+      chi: el.querySelector('.chi'),
+    };
+    c.chi.textContent = s.chi;
+    el.style.visibility = 'visible';        /* visibile per misurare */
+    cards.push(c);
+  });
+
+  /* ── 1 · il numero prende tutta la colonna che gli resta accanto alla
+        percentuale: un solo corpo per tutte le carte, ridotto se serve ── */
+  var kNum = 1;
+  cards.forEach(function (c) {
+    c.num.style.fontSize = K.numFS + 'px';
+    var nw = c.num.offsetWidth, avail = CW - K.GAP - c.side.offsetWidth;
+    if (nw > 0 && avail > 0 && nw > avail) kNum = Math.min(kNum, avail / nw);
+  });
+  var numFS = Math.max(120, Math.floor(K.numFS * kNum));
+  var stroke = Math.max(4, Math.round(numFS / 50));   /* contorno generoso */
+
+  cards.forEach(function (c) {
+    c.num.style.fontSize = numFS + 'px';
+    c.ol.style.webkitTextStroke = stroke + 'px #000';
+  });
+
+  /* ── 2 · geometria del riempimento: la finestra coincide con l'inchiostro ── */
+  var boxH = cards[0].num.offsetHeight || numFS;
+  var mmN = fontMetrics(numFS);
+  var inkTop = Math.max(0, Math.round(baselineIn(boxH, mmN) - mmN.a));
+  var inkH = Math.max(20, Math.round(mmN.a + mmN.d));
+  if (inkTop + inkH > boxH) inkH = boxH - inkTop;
+
+  var mmR = fontMetrics(K.rollFS);
+  var rInkBottom = baselineIn(rowH, mmR) + mmR.d;
+  /* la base della percentuale sulla base del numero */
+  var sideTop = Math.max(0, Math.round(inkH - rInkBottom));
+
+  /* Il blocco vale quanto l'INCHIOSTRO, non quanto la riga di testo: la riga
+     porta con sé ~130px di vuoto sotto la base delle cifre, e con quello
+     dentro il nome dell'artista sembrerebbe staccato dal numero. Il numero
+     esce dal blocco verso l'alto (spazio vuoto, niente da tagliare) e i
+     margini si misurano dai bordi veri del glifo. */
+  cards.forEach(function (c) {
+    c.stack.style.height = inkH + 'px';
+    c.num.style.top = (-inkTop) + 'px';
+    c.mk.style.top = inkTop + 'px';
+    c.mk.style.height = inkH + 'px';
+    c.sl.style.top = (-inkTop) + 'px';
+    c.side.style.top = sideTop + 'px';
+    c.dayln.style.fontSize = K.dayFS + 'px';
+  });
+
+  /* ── 3 · i nomi: un solo corpo per tutti, sempre su una riga ── */
+  var kChi = 1;
+  cards.forEach(function (c) {
+    c.chi.style.fontSize = K.chiFS + 'px';
+    c.chi.style.whiteSpace = 'nowrap';
+    var w = c.chi.scrollWidth;
+    if (w > CW) kChi = Math.min(kChi, CW / w);
+  });
+  var chiFS = Math.max(28, Math.floor(K.chiFS * kChi));
+  cards.forEach(function (c) {
+    c.chi.style.whiteSpace = '';
+    c.chi.style.fontSize = chiFS + 'px';
+    var lines = SG.justify(c.chi);
+    SG.capAir(lines);                       /* niente parole sfarinate */
+    lines.forEach(function (ln) {
+      var dl = SG.packDeltas(ln);
+      [].slice.call(ln.children).forEach(function (wd, i) { wd._dx = dl[i] || 0; });
+    });
+    c.chiLines = lines;
+    c.chiWords = [].slice.call(c.chi.querySelectorAll('.wd'));
+  });
+
+  /* ── 4 · la CTA giustificata edge-to-edge, come sui manifesti ── */
+  var cta = document.querySelector('.ft-cta');
+  cta.textContent = D.cta;
+  cta.style.fontSize = K.ctaFS + 'px';
+  cta.style.whiteSpace = 'nowrap';
+  var ctaW = cta.scrollWidth, ctaFS = K.ctaFS;
+  if (ctaW > CW * 0.9) ctaFS = Math.max(20, Math.floor(K.ctaFS * (CW * 0.9) / ctaW));
+  cta.style.whiteSpace = '';
+  cta.style.fontSize = ctaFS + 'px';
+  SG.capAir(SG.justify(cta));
+
+  /* misurato: da qui in poi le carte le comanda la timeline */
+  cards.forEach(function (c) { c.el.style.visibility = ''; });
+
+  /* ── TIMELINE ────────────────────────────────────────────────────────
+     Tre battute identiche da 3,67s → 11,01s. Il primo riempimento è
+     completo a 1,50s: il messaggio arriva prima che il pollice scrolli. */
+
+  /* arrotondamento simmetrico: r(-x) === -r(x) → finestra e inchiostro
+     restano allineati al pixel in ogni singolo frame */
+  function symRound(v) { return v < 0 ? -Math.round(-v) : Math.round(v); }
+  var pxRound = gsap.utils.unitize(symRound);
+  var pxSnapRow = gsap.utils.unitize(gsap.utils.snap(rowH));
+
+  var tl = gsap.timeline({ repeat: -1 });
+  var t = 0, tReady = 0;
+
+  cards.forEach(function (c, ci) {
+    var rest = Math.round(inkH * (1 - c.pct / 100));   /* quanto resta vuoto */
+
+    /* stato di partenza: numero vuoto, rullo su 00, righe sotto la maschera */
+    tl.set(c.el, { visibility: 'visible', scale: 1 }, t);
+    tl.set(c.num, { y: 34, opacity: 0 }, t);
+    tl.set(c.side, { y: 34, opacity: 0 }, t);
+    tl.set(c.mk, { y: inkH }, t);
+    tl.set(c.sl, { y: -inkH }, t);
+    tl.set(c.strip, { y: 0 }, t);
+    tl.set(c.dayln, { yPercent: 110 }, t);
+    tl.set(c.chiLines, { yPercent: 110 }, t);
+    tl.set(c.chiWords, { x: function (i, tg) { return tg._dx || 0; } }, t);
+
+    /* 1 · entrata */
+    tl.to([c.num, c.side], { y: 0, opacity: 1, duration: 0.52, ease: 'soso', stagger: 0.07 }, t);
+    tl.to(c.dayln, { yPercent: 0, duration: 0.50, ease: 'soso' }, t + 0.06);
+    tl.to(c.chiLines, { yPercent: 0, duration: 0.62, ease: 'soso' }, t + 0.12);
+    /* l'aria si apre nei gap del nome */
+    tl.to(c.chiWords, { x: 0, duration: 1.00, ease: 'expo.inOut', stagger: 0.012 }, t + 0.34);
+
+    /* 2 · il nero sale dentro il numero e la percentuale conta: insieme,
+           stesso start, stessa durata, stesso ease → arrivano esatti */
+    var tf = t + 0.30, dur = 1.20;
+    tl.to(c.mk, { y: rest, duration: dur, ease: 'soso', modifiers: { y: pxRound } }, tf);
+    tl.to(c.sl, { y: -rest, duration: dur, ease: 'soso', modifiers: { y: pxRound } }, tf);
+    tl.to(c.strip, { y: -c.pct * rowH, duration: dur, ease: 'soso', modifiers: { y: pxSnapRow } }, tf);
+
+    /* 3 · tenuta: il blocco respira, non è mai fermo del tutto */
+    var tFull = tf + dur;
+    if (ci === 0) tReady = tFull;
+    tl.to(c.el, { scale: 1.008, duration: 0.775, ease: 'sine.inOut', yoyo: true, repeat: 1 }, tFull);
+
+    /* 4 · uscita verso l'alto */
+    var tOut = tFull + 1.55;
+    tl.to(c.chiLines, { yPercent: -110, duration: 0.38, ease: 'power2.in' }, tOut);
+    tl.to(c.dayln, { yPercent: -110, duration: 0.34, ease: 'power2.in' }, tOut + 0.04);
+    tl.to([c.num, c.side], { y: -28, opacity: 0, duration: 0.40, ease: 'power2.in', stagger: 0.05 }, tOut);
+    tl.set(c.el, { visibility: 'hidden' }, tOut + 0.50);
+
+    t = tOut + 0.62;      /* respiro bianco tra le serate */
+  });
+
+  /* il respiro finale fa parte della durata: così il battito prima del
+     ricircolo è lungo come quelli fra le serate (11,01s in tutto) e
+     l'ultimo frame — tutto nascosto — è identico al primo */
+  tl.to({}, { duration: 0.12 }, t - 0.12);
+  /* Solo animazione d'entrata (richiesta 2026-07-29): la grafica si compone
+     e RESTA. Le tween d'uscita vengono buttate via e il ciclo non si ripete
+     — un reel informativo deve finire sul dato leggibile, non svuotarsi. */
+  SG.noExit(tl, tOut);
+
+
+  window.TL = tl;
+
+  /* guardiano: se il rAF è strozzato e l'intro non parte, la grafica non
+     resta bianca — salta allo stato «prima serata piena» */
+  var started = false;
+  tl.eventCallback('onUpdate', function () { started = true; });
+  setTimeout(function () {
+    if (!started) { tl.pause(); tl.time(tReady, true); }
+  }, 3000);
+}
+});
+</script>
+</body>
+</html>

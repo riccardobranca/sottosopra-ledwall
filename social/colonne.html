@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<title>Sottosopra — Social · Colonne (istogramma serate)</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  /* «COLONNE» — istogramma: le tre serate come colonne VERTICALI che crescono
+     dal basso dentro la traccia grigia della capienza piena.
+     Idea organizzante unica: la capienza è la stessa per tutte (le tracce sono
+     identiche), quello che cambia è quanto è nero. Il regolo grigio in cima
+     alle tracce è il 100%: il tetto che le colonne stanno raggiungendo.
+
+     Geometria: NIENTE altezza fissa per le colonne. La fascia delle tracce è
+     l'unico blocco `flex: 1` della pagina → si prende l'altezza che resta dopo
+     titolo, percentuali, piedi e footer. Così su .post (1350) resta
+     proporzionata come su .reel (1920) senza misure doppie da manutenere. */
+
+  /* ── misure per formato ─────────────────────────────────────────────────
+     I margini della sheet contengono le safe area di Instagram con un filo di
+     aria in più (reel: 244 sopra · 440 sotto · 188 a destra, contro 220-420-180
+     → il contenuto vivo sta fra y=244 e y=1480). */
+  body.reel #stage {
+    --pt: 244px; --pb: 440px; --pl: 76px; --pr: 188px;
+    --vfs: 102px; --dfs: 52px; --wfs: 23px; --lfs: 24px;
+    --cfs: 40px; --ctah: 88px; --logoh: 34px; --dtfs: 22px;
+    --cg: 46px; --gap-head: 44px; --gap-foot: 40px;
+  }
+  body.post #stage {
+    --pt: 88px; --pb: 88px; --pl: 84px; --pr: 84px;
+    --vfs: 96px; --dfs: 50px; --wfs: 22px; --lfs: 23px;
+    --cfs: 38px; --ctah: 82px; --logoh: 32px; --dtfs: 21px;
+    --cg: 52px; --gap-head: 36px; --gap-foot: 34px;
+  }
+  /* un tick del rullo = una riga di cifre */
+  #stage { --tick: calc(var(--vfs) * 1.1); }
+
+  .sheet {
+    position: absolute;
+    top: var(--pt); right: var(--pr); bottom: var(--pb); left: var(--pl);
+    display: flex; flex-direction: column;
+    text-transform: uppercase;
+  }
+
+  /* ── testa: titolone su 2 righe (un blocco .just per riga = 2 righe sempre) ── */
+  .head { flex: none; }
+  .t1, .t2 { font-size: 112px; }        /* misura vera calcolata dal JS */
+  .metrica { display: block; font-size: var(--lfs); margin-top: 18px; opacity: 0; }
+
+  /* ── il grafico: percentuali · regolo del 100% · tracce (flex) · piedi ── */
+  .chart { flex: 1; min-height: 0; margin-top: var(--gap-head);
+           display: flex; flex-direction: column; }
+
+  .vals  { flex: none; display: flex; gap: var(--cg); margin-bottom: 18px; }
+  /* flex:1 + min-width:0 su vals/cols/foots: le tre fasce restano incolonnate
+     al pixel qualunque cosa ci sia dentro */
+  .vcell { flex: 1; min-width: 0; font-size: var(--vfs); }
+  /* rullo di cifre in puro transform (le callback onUpdate sui contatori non
+     vengono renderizzate in seek: lezione del ledwall). Primo e ultimo tick
+     VUOTI → il numero entra ed esce rotolando, senza altre animazioni. */
+  .vmask { display: block; overflow: hidden; height: var(--tick); }
+  .vroll { display: block; }
+  .tick  { display: block; height: var(--tick); line-height: var(--tick); }
+
+  /* il tetto: 100% = capienza piena, in cima alle tracce */
+  .rule { flex: none; height: 3px; background: var(--muted);
+          transform: scaleX(0); transform-origin: 0% 50%; }
+
+  .cols { flex: 1; min-height: 0; display: flex; gap: var(--cg); }
+  .trk  { flex: 1; min-width: 0; position: relative; background: var(--line);
+          transform: scaleY(0); transform-origin: 50% 100%; }
+  /* la colonna nera: altezza = percentuale della traccia, cresce in scaleY
+     con origine in basso (mai animando height) */
+  .ink  { position: absolute; left: 0; right: 0; bottom: 0; background: var(--fg);
+          transform: scaleY(0); transform-origin: 50% 100%; }
+
+  .foots { flex: none; display: flex; gap: var(--cg); margin-top: 22px; }
+  .fcell { flex: 1; min-width: 0; }
+  .fmask { display: block; overflow: hidden; }
+  .fin   { display: block; }
+  .fday  { display: block; font-size: var(--dfs); line-height: 1.02; }
+  /* spazio riservato per 2 righe: i nomi lunghi vanno a capo senza spostare
+     niente sotto (e senza scendere sotto la soglia di leggibilità) */
+  .who   { display: block; font-size: var(--wfs); line-height: 1.2;
+           letter-spacing: 0.1em; margin-top: 10px; min-height: 2.4em; }
+
+  /* ── piede: confine · quando · azione · firma ──
+     Tre righe impilate, tutte allineate a sinistra: le date e il logo NON
+     stanno sulla stessa riga (a larghezza reel, logo + data tracciata arrivano
+     a sfiorare il margine: una riga per cosa, nessun rischio di collisione). */
+  .foot  { flex: none; margin-top: var(--gap-foot); }
+  .frule { height: 3px; background: var(--line);
+           transform: scaleX(0); transform-origin: 0% 50%; }
+  .dates { display: block; font-size: var(--dtfs); letter-spacing: 0.12em;
+           margin-top: 16px; opacity: 0; }
+  .cta   { position: relative; height: var(--ctah); margin-top: 20px; }
+  .ctabg { position: absolute; inset: 0; background: var(--fg);
+           transform: scaleX(0); transform-origin: 0% 50%; }
+  .ctain { position: relative; height: 100%; display: flex; align-items: center;
+           justify-content: space-between; padding: 0 26px;
+           color: var(--bg); font-size: var(--cfs); opacity: 0; }
+  .ctatx { letter-spacing: 0.02em; }
+  .logo  { display: block; height: var(--logoh); width: auto;
+           margin-top: 20px; opacity: 0; }
+
+  /* safe area di Instagram (?safe=1) */
+  .safe .st { top: 0; height: 220px; }
+  .safe .sb { bottom: 0; height: 420px; }
+  .safe .sr { top: 0; bottom: 0; left: auto; right: 0; width: 180px; }
+  body.post .safe .st,
+  body.post .safe .sb { height: 80px; }
+  body.post .safe .sr { width: 80px; }
+</style>
+</head>
+<body class="reel">
+<div id="wrap">
+  <div id="stage">
+    <div class="sheet">
+
+      <div class="head">
+        <div class="just t1" data-text=""></div>
+        <div class="just t2" data-text="" hidden></div>
+        <span class="metrica label"></span>
+      </div>
+
+      <div class="chart">
+        <div class="vals"></div>
+        <div class="rule"></div>
+        <div class="cols"></div>
+        <div class="foots"></div>
+      </div>
+
+      <div class="foot">
+        <div class="frule"></div>
+        <span class="dates label"></span>
+        <div class="cta">
+          <span class="ctabg"></span>
+          <span class="ctain"><span class="ctatx"></span><span class="ctaar">&#8594;</span></span>
+        </div>
+        <img class="logo" src="media/sottosopra-logo-black.png" alt="Sottosopra">
+      </div>
+
+    </div>
+
+    <div class="safe"><i class="st"></i><i class="sb"></i><i class="sr"></i></div>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script src="vendor/CustomEase.min.js"></script>
+<script src="_shared.js"></script>
+<script src="_dati.js"></script>
+<script>
+SG.ready(function () {
+  SG.setTitle('.just.t1, .just.t2');   /* titolo da _dati.js */
+  var D = window.DATI || {}, S = D.serate || [];
+  var stage = document.getElementById('stage');
+  var vals  = document.querySelector('.vals');
+  var cols  = document.querySelector('.cols');
+  var foots = document.querySelector('.foots');
+
+  /* ── testi di servizio: sempre dai DATI, mai riscritti qui ── */
+  document.querySelector('.metrica').textContent = D.metrica || '';
+  document.querySelector('.ctatx').textContent   = D.cta || '';
+  document.querySelector('.dates').textContent   = D.date || '';
+
+  /* ── le tre colonne, costruite dai dati ─────────────────────────────────
+     ROLL_N = tappe del rullo. I valori sono LINEARI (val·k/N): il numero
+     avanza esattamente come la colonna, che parte nello stesso istante con la
+     stessa durata e la stessa curva → arrivano insieme, non uno prima. */
+  var ROLL_N = 12;
+  var units = [], maxPct = 0;
+
+  S.forEach(function (s) {
+    var pct = Math.max(0, Math.min(100, s.pct || 0));
+
+    /* percentuale (rullo di cifre) */
+    var vcell = document.createElement('div'); vcell.className = 'vcell';
+    var vmask = document.createElement('span'); vmask.className = 'vmask';
+    var roll  = document.createElement('span'); roll.className = 'vroll';
+    var html  = '<span class="tick">&nbsp;</span>';          /* vuoto: entra rotolando */
+    for (var k = 1; k <= ROLL_N; k++) {
+      var v = (k === ROLL_N) ? pct : Math.max(1, Math.round(pct * k / ROLL_N));
+      html += '<span class="tick">' + v + '%</span>';
+    }
+    html += '<span class="tick">&nbsp;</span>';              /* vuoto: esce rotolando */
+    roll.innerHTML = html;
+    roll._M   = ROLL_N + 2;      /* tick totali */
+    roll._end = ROLL_N;          /* indice del tick col valore vero */
+    vmask.appendChild(roll); vcell.appendChild(vmask); vals.appendChild(vcell);
+    if (pct > maxPct) maxPct = pct;
+
+    /* traccia (capienza piena) + colonna nera (il dato) */
+    var trk = document.createElement('div'); trk.className = 'trk';
+    var ink = document.createElement('span'); ink.className = 'ink';
+    ink.style.height = pct + '%';
+    trk.appendChild(ink); cols.appendChild(trk);
+
+    /* piede: data grande + nome in etichetta */
+    var fcell = document.createElement('div'); fcell.className = 'fcell';
+    var fmask = document.createElement('span'); fmask.className = 'fmask';
+    var fin   = document.createElement('span'); fin.className = 'fin';
+    var fday  = document.createElement('span'); fday.className = 'fday';
+    fday.textContent = (s.g || '') + ' ' + (s.d || '');
+    var who   = document.createElement('span'); who.className = 'who label';
+    who.textContent = s.chi || '';
+    fin.appendChild(fday); fin.appendChild(who);
+    fmask.appendChild(fin); fcell.appendChild(fmask); foots.appendChild(fcell);
+
+    units.push({ roll: roll, ink: ink, trk: trk, fin: fin });
+  });
+
+  /* ── misure a corpo-sonda (font già caricato: SG.ready) ─────────────────
+     Serve per due cose: il corpo del titolone e la garanzia che la percentuale
+     non sfori la sua cella (la maschera del rullo clippa anche in orizzontale:
+     con un ipotetico 100% il numero si taglierebbe). */
+  var probe = document.createElement('span');
+  probe.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;' +
+    'white-space:nowrap;text-transform:uppercase;font-size:100px;';
+  stage.appendChild(probe);
+
+  function wide(txt) { probe.textContent = txt; return probe.offsetWidth; }
+
+  /* percentuali: se il numero più largo non ci sta nella cella, scende il corpo */
+  var vcell0 = vals.firstElementChild;
+  if (vcell0) {
+    var cellW  = vcell0.clientWidth;
+    var vfsNow = parseFloat(getComputedStyle(vcell0).fontSize);
+    var vfsMax = 100 * (cellW * 0.94) / Math.max(1, wide(maxPct + '%'));
+    if (vfsMax < vfsNow) stage.style.setProperty('--vfs', vfsMax.toFixed(1) + 'px');
+  }
+
+  /* titolone: corpo calcolato, non indovinato. Misuro la riga naturale più
+     lunga e scelgo il corpo che la porta al 90% della larghezza utile: nessuna
+     riga va a capo (2 blocchi = 2 righe) e resta aria vera nei gap, come nei
+     poster del grafico. Cap 112px: oltre, il titolo mangerebbe le colonne. */
+  var t1 = document.querySelector('.t1'), t2 = document.querySelector('.t2');
+  var avail = t1.clientWidth, needMax = 1;
+  [t1, t2].forEach(function (el) {
+    needMax = Math.max(needMax, wide(el.getAttribute('data-text') || ''));
+  });
+  stage.removeChild(probe);
+  var tfs = Math.max(56, Math.min(112, 100 * (avail * 0.90) / needMax));
+  t1.style.fontSize = t2.style.fontSize = tfs.toFixed(1) + 'px';
+
+  var tLines = SG.justify(t1).concat(SG.justify(t2));
+  /* tetto all'aria: soglia più bassa del default perché la riga mono-parola qui
+     ha 9 lettere (non si sfarina), ma il guardiano resta attivo se un domani il
+     testo si accorcia */
+  SG.capAir(tLines, 0.52);
+  tLines.forEach(function (ln) {
+    var d = SG.packDeltas(ln);
+    [].slice.call(ln.children).forEach(function (wd, i) { wd._dx = d[i]; });
+  });
+  var tWords = [].slice.call(t1.querySelectorAll('.wd'))
+                 .concat([].slice.call(t2.querySelectorAll('.wd')));
+
+  /* ── timeline ───────────────────────────────────────────────────────────
+     0→4.2 entrata (titolo leggibile a ~1,2s · colonne che crescono da 1,4s)
+     4.2→9.0 tenuta · 9.0→10.2 uscita + coda bianca.
+     Ultimo frame ≡ primo: stage bianco vuoto in entrambi. */
+  var head    = document.querySelector('.head');
+  var metrica = document.querySelector('.metrica');
+  var rule    = document.querySelector('.rule');
+  var frule   = document.querySelector('.frule');
+  var ctabg   = document.querySelector('.ctabg');
+  var ctain   = document.querySelector('.ctain');
+  var dates   = document.querySelector('.dates');
+  var logo    = document.querySelector('.logo');
+
+  var HOLD = 4.2, EXIT = 9.0, END = 10.2;
+  var BR = (EXIT - HOLD) / 2;    /* mezza respirazione della tenuta */
+  var BAR = 1.7;                 /* crescita di una colonna */
+
+  var tl = gsap.timeline({ repeat: -1 });
+
+  /* stato iniziale — ri-applicato a ogni giro: il loop riparte pulito */
+  tl.set(head,    { scale: 1, transformOrigin: '0% 50%' }, 0);
+  tl.set(tLines,  { yPercent: 110 }, 0);
+  tl.set(tWords,  { x: function (i, t) { return t._dx || 0; } }, 0);
+  tl.set(metrica, { opacity: 0, y: 22 }, 0);
+  tl.set(rule,    { scaleX: 0, transformOrigin: '0% 50%' }, 0);
+  tl.set(frule,   { scaleX: 0, transformOrigin: '0% 50%' }, 0);
+  tl.set(ctabg,   { scaleX: 0, transformOrigin: '0% 50%' }, 0);
+  tl.set(ctain,   { opacity: 0, y: 16 }, 0);
+  tl.set(dates,   { opacity: 0, y: 16 }, 0);
+  tl.set(logo,    { opacity: 0, y: 16 }, 0);
+  units.forEach(function (u) {
+    tl.set(u.trk,  { scaleY: 0, transformOrigin: '50% 100%' }, 0);
+    tl.set(u.ink,  { scaleY: 0, transformOrigin: '50% 100%' }, 0);
+    tl.set(u.roll, { yPercent: 0 }, 0);
+    tl.set(u.fin,  { yPercent: 110 }, 0);
+  });
+
+  /* 1 · il titolo sale da sotto la maschera, poi l'aria si apre nei gap */
+  tl.to(tLines,  { yPercent: 0, duration: 0.9, ease: 'soso', stagger: 0.12 }, 0.05);
+  tl.to(tWords,  { x: 0, duration: 1.15, ease: 'expo.inOut', stagger: 0.014 }, 0.50);
+  tl.to(metrica, { opacity: 1, y: 0, duration: 0.6, ease: 'soso' }, 0.80);
+
+  /* 2 · il tetto del 100% si tira da sinistra, le tracce salgono a incontrarlo */
+  tl.to(rule, { scaleX: 1, duration: 0.75, ease: 'soso' }, 0.35);
+  units.forEach(function (u, i) {
+    tl.to(u.trk, { scaleY: 1, duration: 0.6, ease: 'soso' }, 0.62 + i * 0.14);
+  });
+
+  /* 3 · le colonne crescono e le percentuali salgono CON loro */
+  units.forEach(function (u, i) {
+    var t = 1.40 + i * 0.24;      /* stagger 0.24 fra le serate */
+    tl.to(u.ink, { scaleY: 1, duration: BAR, ease: 'soso' }, t);
+    tl.fromTo(u.roll,
+      { yPercent: 0 },
+      { yPercent: -100 * u.roll._end / u.roll._M, duration: BAR, ease: 'soso',
+        immediateRender: false },
+      t);
+    tl.to(u.fin, { yPercent: 0, duration: 0.75, ease: 'soso' }, t + 0.22);
+  });
+
+  /* 4 · piede: confine, date, slab dell'azione, firma
+         (il testo del bottone entra DOPO che lo slab è pieno: bianco su bianco
+         non si vedrebbe) */
+  tl.to(frule, { scaleX: 1, duration: 0.6,  ease: 'soso' }, 2.30);
+  tl.to(dates, { opacity: 1, y: 0, duration: 0.55, ease: 'soso' }, 2.45);
+  tl.to(ctabg, { scaleX: 1, duration: 0.65, ease: 'soso' }, 2.65);
+  tl.to(ctain, { opacity: 1, y: 0, duration: 0.5,  ease: 'soso' }, 3.35);
+  tl.to(logo,  { opacity: 1, y: 0, duration: 0.55, ease: 'soso' }, 3.60);
+
+  /* 5 · tenuta ~4,8s: il grafico sta fermo (è una misura, non deve pulsare),
+         respira solo il titolo, ancorato al margine sinistro */
+  tl.to(head, { scale: 1.008, duration: BR, ease: 'sine.inOut', yoyo: true, repeat: 1 }, HOLD);
+
+  /* 6 · uscita: il titolo esce in alto, le colonne si ritirano in basso,
+         i regoli rientrano dal verso da cui erano arrivati */
+  tl.to(tLines,  { yPercent: -110, duration: 0.5, ease: 'power2.in', stagger: 0.06 }, EXIT);
+  tl.to(metrica, { opacity: 0, y: -16, duration: 0.4, ease: 'power2.in' }, EXIT);
+  tl.to(ctain,   { opacity: 0, y: -14, duration: 0.35, ease: 'power2.in' }, EXIT);
+  tl.to(dates,   { opacity: 0, y: -14, duration: 0.35, ease: 'power2.in' }, EXIT);
+  tl.to(logo,    { opacity: 0, y: -14, duration: 0.35, ease: 'power2.in' }, EXIT);
+
+  units.forEach(function (u, i) {
+    var t = EXIT + 0.05 + i * 0.10;
+    tl.to(u.ink,  { scaleY: 0, duration: 0.5, ease: 'power2.in' }, t);
+    tl.to(u.roll, { yPercent: -100 * (u.roll._end + 1) / u.roll._M,
+                    duration: 0.5, ease: 'power2.in' }, t);
+    tl.to(u.fin,  { yPercent: 110, duration: 0.5, ease: 'power2.in' }, t + 0.05);
+    tl.to(u.trk,  { scaleY: 0, duration: 0.5, ease: 'power2.in' }, t + 0.25);
+  });
+
+  tl.set(ctabg, { transformOrigin: '100% 50%' }, EXIT + 0.19);
+  tl.to(ctabg,  { scaleX: 0, duration: 0.45, ease: 'power2.in' }, EXIT + 0.20);
+  tl.set(frule, { transformOrigin: '100% 50%' }, EXIT + 0.29);
+  tl.to(frule,  { scaleX: 0, duration: 0.40, ease: 'power2.in' }, EXIT + 0.30);
+  tl.set(rule,  { transformOrigin: '100% 50%' }, EXIT + 0.44);
+  tl.to(rule,   { scaleX: 0, duration: 0.45, ease: 'power2.in' }, EXIT + 0.45);
+
+  /* coda bianca: porta il ciclo a END esatti (stage vuoto ≡ frame 0) */
+  tl.to({}, { duration: 0.1 }, END - 0.1);
+  /* Solo animazione d'entrata (richiesta 2026-07-29): la grafica si compone
+     e RESTA. Le tween d'uscita vengono buttate via e il ciclo non si ripete
+     — un reel informativo deve finire sul dato leggibile, non svuotarsi. */
+  SG.noExit(tl, EXIT);
+
+
+  window.TL = tl; /* per scrub/verifica deterministica */
+
+  /* guardiano: se rAF è strozzato e l'intro non è mai partita, dopo 3s salto
+     allo stato tenuto — la grafica non resta mai bianca */
+  setTimeout(function () {
+    if (tl.totalTime() < 0.05) tl.seek(HOLD + 0.3);
+  }, 3000);
+});
+</script>
+</body>
+</html>

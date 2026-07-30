@@ -1,0 +1,3 @@
+# Anteprima interna delle grafiche ledwall — non deve finire nei motori di ricerca.
+User-agent: *
+Disallow: /

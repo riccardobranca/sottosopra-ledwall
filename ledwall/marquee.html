@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<title>Sottosopra — Ledwall · Nastro gigante</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  /* ── tre bande marquee full-bleed che riempiono l'intera altezza ── */
+  #bands { position: absolute; inset: 0; display: flex; flex-direction: column; }
+  #bands .rule { flex: none; }
+
+  .band {
+    flex: 1 1 0; min-height: 0;
+    overflow: hidden;
+    display: flex; align-items: center;
+  }
+
+  /* il track contiene DUE chunk identici: translateX −50% = esattamente un chunk
+     → l'ultimo frame coincide col primo, loop senza cucitura */
+  .band .track {
+    display: inline-flex; flex: none;
+    will-change: transform;
+    backface-visibility: hidden;
+  }
+  .chunk {
+    display: inline-block; white-space: nowrap;
+    line-height: 1; text-transform: uppercase;
+  }
+
+  #b1 .chunk { font-size: 162px; }
+  #b2 .chunk { font-size: 150px; color: transparent; -webkit-text-stroke: 3px var(--fg); }
+  #b3 .chunk { font-size: 156px; }
+
+  /* moto continuo LINEARE via CSS keyframes (compositor-friendly, gira anche
+     nel preview throttlato). Durate di default ≈ giuste; il JS le ricalcola
+     al px/s esatto dopo il caricamento del font. */
+  @keyframes lw-left  { from { transform: translate3d(0, 0, 0); }    to { transform: translate3d(-50%, 0, 0); } }
+  @keyframes lw-right { from { transform: translate3d(-50%, 0, 0); } to { transform: translate3d(0, 0, 0); } }
+
+  .band .track        { animation: lw-left 88s linear infinite; }
+  .band.rev .track    { animation-name: lw-right; transform: translate3d(-50%, 0, 0); }
+  #b2 .track          { animation-duration: 83s; }
+  #b3 .track          { animation-duration: 83s; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage">
+    <div id="bands">
+
+      <!-- banda 1 · verso sinistra · ~40 px/s -->
+      <div class="band" id="b1" data-speed="40">
+        <div class="track">
+          <span class="chunk">SEMPRE SOTTOSOPRA&nbsp;·&nbsp;SEMPRE SOTTOSOPRA&nbsp;·&nbsp;</span><span class="chunk">SEMPRE SOTTOSOPRA&nbsp;·&nbsp;SEMPRE SOTTOSOPRA&nbsp;·&nbsp;</span>
+        </div>
+      </div>
+
+      <div class="rule"></div>
+
+      <!-- banda 2 · verso DESTRA · ~55 px/s · outline -->
+      <div class="band rev" id="b2" data-speed="55">
+        <div class="track">
+          <span class="chunk">CAMBIA IL PUNTO DI VISTA&nbsp;·&nbsp;CAMBIA IL PUNTO DI VISTA&nbsp;·&nbsp;</span><span class="chunk">CAMBIA IL PUNTO DI VISTA&nbsp;·&nbsp;CAMBIA IL PUNTO DI VISTA&nbsp;·&nbsp;</span>
+        </div>
+      </div>
+
+      <div class="rule"></div>
+
+      <!-- banda 3 · verso sinistra · ~70 px/s -->
+      <div class="band" id="b3" data-speed="70">
+        <div class="track">
+          <span class="chunk">DAL 2017 — CASTELFRANCO VENETO&nbsp;·&nbsp;DAL 2017 — CASTELFRANCO VENETO&nbsp;·&nbsp;</span><span class="chunk">DAL 2017 — CASTELFRANCO VENETO&nbsp;·&nbsp;DAL 2017 — CASTELFRANCO VENETO&nbsp;·&nbsp;</span>
+        </div>
+      </div>
+
+    </div>
+    <!-- niente .meta: il nastro è full-bleed (deroga concordata nel brief di scena) -->
+  </div>
+</div>
+
+<script src="_shared.js"></script>
+<script>
+/* Il moto è tutto CSS (nessuna window.TL: consentito dallo SPEC per il moto
+   continuo puro). Il JS fa solo due cose, a font caricato:
+   1) garantisce che ogni chunk copra almeno lo stage (mai un buco a destra);
+   2) porta la durata dell'animazione al px/s ESATTO richiesto dal brief
+      (durata = larghezza chunk / velocità). Cambiare la durata a t≈0 sposta
+      la fase di frazioni di px: invisibile. */
+LW.ready(function () {
+  [].slice.call(document.querySelectorAll('.band')).forEach(function (band) {
+    var track = band.querySelector('.track');
+    var chunks = [].slice.call(track.querySelectorAll('.chunk'));
+    var guard = 0;
+    while (chunks[0].offsetWidth < LW.W + 100 && guard++ < 4) {
+      chunks.forEach(function (c) { c.innerHTML += c.innerHTML; }); /* SEMPRE entrambi: le metà devono restare identiche */
+    }
+    var speed = parseFloat(band.dataset.speed);
+    if (speed > 0) track.style.animationDuration = (chunks[0].offsetWidth / speed) + 's';
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<title>Sottosopra — Social · Tre barre</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  /* ── «TRE BARRE» — le tre serate INSIEME, una riga ciascuna ─────────────────
+     Una sola idea: il CONFRONTO. Tre righe con la stessa traccia grigia, quindi
+     è la lunghezza del nero a raccontare quale serata sta finendo.
+     Riga: data in colonna fissa · barra · percentuale a filo del margine destro;
+     sotto la barra, chi suona quella sera.
+     Le due larghezze di colonna (data, rullo cifre) sono misurate in JS sul font
+     vero e condivise da tutte le righe → barre identiche fra loro (se una barra
+     fosse più corta di un'altra il confronto mentirebbe). */
+
+  #stage {
+    --big: 64px;      /* corpo di data e percentuale */
+    --tick: 76px;     /* altezza maschera/riga = uno scatto del rullo cifre */
+    --gap: 24px;      /* passo orizzontale fra le colonne */
+    --dw: 262px;      /* colonna data — ricalcolata in JS */
+    --pw: 92px;       /* larghezza rullo cifre — ricalcolata in JS */
+    --barh: 36px;
+    --lab: 27px;      /* etichette (metrica, date) */
+    --sub: 25px;      /* nome artista sotto la barra */
+  }
+  /* Reel: margine destro largo (colonna like/commenti) e fasce alto/basso.
+     Post: 80px per lato, niente interfaccia sopra. */
+  body.reel #stage { --padl: 68px; --padr: 180px; --padt: 240px; --padb: 440px; --ttl: 92px; --cta: 46px; }
+  body.post #stage { --padl: 80px; --padr: 80px;  --padt: 80px;  --padb: 80px;  --ttl: 96px; --cta: 50px; }
+
+  /* il riquadro vivo: testa in alto, piede ancorato in basso.
+     visibility hidden finché la timeline non ha reso il fotogramma 0 (niente lampo). */
+  .frame {
+    position: absolute;
+    left: var(--padl); right: var(--padr); top: var(--padt); bottom: var(--padb);
+    display: flex; flex-direction: column; justify-content: space-between;
+    visibility: hidden;
+  }
+  /* flex:none — mai shrink: se un blocco si comprimesse, le maschere
+     (overflow hidden) taglierebbero date e percentuali. */
+  .top, .foot { flex: none; }
+
+  /* ── testa ── */
+  .ttl { font-size: var(--ttl); }
+  .metrica { margin-top: 26px; font-size: var(--lab); opacity: 0; }
+  /* un solo regolo, a chiudere la testa e ad aprire i dati (mai hairline) */
+  .rule { height: 4px; background: var(--fg); margin-top: 30px;
+          transform: scaleX(0); transform-origin: 0% 50%; }
+
+  /* ── le tre righe ── */
+  .rows { margin-top: 96px; }
+  .serata + .serata { margin-top: 58px; }
+  .row { display: flex; align-items: center; gap: var(--gap); }
+
+  .rdate { flex: 0 0 var(--dw); }
+  .dmask { display: block; overflow: hidden; height: var(--tick); }
+  /* NB: nessun translate in percentuale qui — GSAP leggerebbe la matrice come y
+     in px e ci sommerebbe yPercent (offset doppio, data clippata per sempre).
+     Lo stato iniziale lo mette la timeline; il quadro è nascosto fino al frame 0. */
+  .dtxt  { display: block; font-size: var(--big); line-height: var(--tick);
+           text-transform: uppercase; white-space: nowrap; }
+
+  /* la barra prende tutto lo spazio che resta: uguale in tutte le righe */
+  .row .bar { flex: 1 1 0; height: var(--barh); transform: scaleX(0); transform-origin: 0% 50%; }
+
+  /* percentuale: rullo di cifre dentro una maschera alta un tick + «%» fermo.
+     Il rullo scorre in puro transform (i contatori con onUpdate restano
+     congelati quando si salta nella timeline). */
+  .rpct  { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; opacity: 0; }
+  .pmask { display: block; overflow: hidden; height: var(--tick); width: var(--pw); }
+  .roll  { display: block; }
+  .tick  { display: block; height: var(--tick); line-height: var(--tick);
+           font-size: var(--big); text-align: right; }
+  .pc    { display: block; font-size: var(--big); line-height: var(--tick); }
+
+  /* chi suona: allineato al bordo sinistro della barra, non della data */
+  .sub { margin-left: calc(var(--dw) + var(--gap)); margin-top: 12px;
+         font-size: var(--sub); line-height: 1.2; white-space: nowrap; opacity: 0; }
+
+  /* ── piede: logo discreto, date leggibili, CTA come chiusa ── */
+  .logo  { display: block; width: 300px; height: auto; opacity: 0; }
+  .dates { margin-top: 30px; font-size: var(--lab); color: var(--fg); opacity: 0; }
+  .cta   { margin-top: 22px; font-size: var(--cta); }
+
+  /* sonda di misura: fuori quadro, stesso font dello stage */
+  .probe { position: absolute; left: -99999px; top: 0; white-space: pre;
+           text-transform: uppercase; letter-spacing: 0; }
+
+  /* fasce coperte dall'interfaccia Instagram (?safe=1) */
+  .safe .t { top: 0; height: 220px; }
+  .safe .b { bottom: 0; height: 420px; }
+  .safe .v { position: absolute; top: 0; bottom: 0; right: 0; width: 180px;
+             background: rgba(255, 0, 0, .14); border-left: 2px dashed rgba(255, 0, 0, .5); }
+  body.post .safe i, body.post .safe .v { display: none; }
+</style>
+</head>
+<body class="reel">
+<div id="wrap">
+  <div id="stage">
+    <div class="frame">
+      <div class="top">
+        <div class="head">
+          <div class="just ttl" data-text=""></div>
+          <div class="metrica label"></div>
+          <div class="rule"></div>
+        </div>
+        <div class="rows"></div>
+      </div>
+
+      <div class="foot">
+        <img class="logo" src="media/sottosopra-logo-black.png" alt="Sottosopra" width="1921" height="215">
+        <div class="dates label"></div>
+        <div class="just cta"></div>
+      </div>
+    </div>
+
+    <div class="safe"><i class="t"></i><i class="b"></i><div class="v"></div></div>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script src="vendor/CustomEase.min.js"></script>
+<script src="_dati.js"></script>
+<script src="_shared.js"></script>
+<script>
+SG.ready(function () {
+  SG.setTitle('.just.ttl');   /* titolo da _dati.js */
+  var stage = document.getElementById('stage');
+  var frame = document.querySelector('.frame');
+  var D = window.DATI, S = D.serate;
+  var BIG = parseFloat(getComputedStyle(stage).getPropertyValue('--big')) || 64;
+
+  /* Il rullo ha tappe UNIFORMI NEL VALORE e viaggia con la stessa ease e la
+     stessa durata della barra: così il numero segue esattamente il riempimento
+     e i due arrivano nello stesso istante. */
+  var N = 14;
+
+  /* ── testi: solo dai dati ── */
+  document.querySelector('.metrica').textContent = D.metrica;
+  document.querySelector('.dates').textContent = D.date;
+  document.querySelector('.cta').setAttribute('data-text', D.cta);
+
+  /* ── una riga per serata ── */
+  var rowsEl = document.querySelector('.rows');
+  var rows = S.map(function (s) {
+    var el = document.createElement('div');
+    el.className = 'serata';
+    el.innerHTML =
+      '<div class="row">' +
+        '<div class="rdate"><span class="dmask"><span class="dtxt"></span></span></div>' +
+        '<div class="bar"><span class="fill"></span></div>' +
+        '<div class="rpct"><span class="pmask"><span class="roll"></span></span><span class="pc">%</span></div>' +
+      '</div>' +
+      '<div class="sub label"></div>';
+    el.querySelector('.dtxt').textContent = s.g + ' ' + s.d;
+    el.querySelector('.sub').textContent = s.chi;
+
+    var steps = [];
+    for (var k = 0; k < N; k++) steps.push(Math.round(s.pct * k / (N - 1)));
+    el.querySelector('.roll').innerHTML = steps.map(function (v) {
+      return '<span class="tick">' + v + '</span>';
+    }).join('');
+
+    rowsEl.appendChild(el);
+    return {
+      v: s.pct, steps: steps,
+      dtxt: el.querySelector('.dtxt'),
+      bar:  el.querySelector('.bar'),
+      fill: el.querySelector('.fill'),
+      roll: el.querySelector('.roll'),
+      pct:  el.querySelector('.rpct'),
+      sub:  el.querySelector('.sub')
+    };
+  });
+
+  /* ── colonne a misura del font vero ──
+     offsetWidth = px di layout (non tocca la scala dell'anteprima).
+     Una sola coppia di larghezze per tutte le righe. */
+  var probe = document.createElement('span');
+  probe.className = 'probe';
+  probe.style.fontSize = BIG + 'px';
+  stage.appendChild(probe);
+  function mw(txt) { probe.textContent = txt; return probe.offsetWidth; }
+  var dw = 0, pw = 0;
+  rows.forEach(function (r, i) {
+    dw = Math.max(dw, mw(S[i].g + ' ' + S[i].d));
+    r.steps.forEach(function (v) { pw = Math.max(pw, mw(String(v))); });
+  });
+  probe.parentNode.removeChild(probe);
+  stage.style.setProperty('--dw', (dw + 10) + 'px');
+  stage.style.setProperty('--pw', (pw + 4) + 'px');
+
+  /* ── titoloni: motore del sito. capAir SEMPRE dopo justify; i delta
+     «compatto → giustificato» si misurano dopo, così l'aria si apre da dove
+     la riga sta davvero. ── */
+  function build(el, withAir) {
+    var lines = SG.justify(el);
+    SG.capAir(lines);
+    if (withAir) lines.forEach(function (ln) {
+      var d = SG.packDeltas(ln);
+      [].slice.call(ln.children).forEach(function (wd, i) { wd._dx = d[i]; });
+    });
+    return lines;
+  }
+  var ttlLines = build(document.querySelector('.ttl'), true);
+  var ttlWords = [].slice.call(document.querySelectorAll('.ttl .wd'));
+  var ctaLines = build(document.querySelector('.cta'), false);
+
+  var met   = document.querySelector('.metrica');
+  var rule  = document.querySelector('.rule');
+  var logo  = document.querySelector('.logo');
+  var dates = document.querySelector('.dates');
+
+  /* la barra più piena: è quella che pulsa nella tenuta (dai dati, non a mano) */
+  var fullest = rows[0];
+  rows.forEach(function (r) { if (r.v > fullest.v) fullest = r; });
+
+  /* ── tempi (s) ── */
+  var HOLD = 3.40, HOLD_D = 6.00, EXIT = HOLD + HOLD_D, TOT = 10.80;
+
+  var tl = gsap.timeline({ repeat: -1, paused: true });
+
+  /* ── stato iniziale: ri-applicato a ogni giro, così il loop richiude esatto.
+     Tutto è fuori maschera o a opacità 0 → il fotogramma 0 è bianco vuoto,
+     identico all'ultimo. ── */
+  tl.set(ttlLines, { yPercent: 110 }, 0);
+  tl.set(ttlWords, { x: function (i, t) { return t._dx || 0; } }, 0);
+  tl.set(met,      { opacity: 0, y: 24 }, 0);
+  tl.set(rule,     { scaleX: 0, transformOrigin: '0% 50%' }, 0);
+  rows.forEach(function (r) {
+    tl.set(r.dtxt, { yPercent: 110 }, 0);
+    tl.set(r.bar,  { scaleX: 0, scaleY: 1, transformOrigin: '0% 50%' }, 0);
+    tl.set(r.fill, { scaleX: 0 }, 0);
+    tl.set(r.roll, { yPercent: 0 }, 0);
+    tl.set(r.pct,  { opacity: 0, y: 26 }, 0);
+    tl.set(r.sub,  { opacity: 0, y: 16 }, 0);
+  });
+  tl.set(logo,     { opacity: 0, y: 26 }, 0);
+  tl.set(dates,    { opacity: 0, y: 20 }, 0);
+  tl.set(ctaLines, { yPercent: 110 }, 0);
+
+  /* 1 · il titolone entra da sotto le maschere e l'aria si apre (≤1s: si legge subito) */
+  tl.to(ttlLines, { yPercent: 0, duration: 0.85, ease: 'soso', stagger: 0.10 }, 0);
+  tl.to(ttlWords, { x: 0, duration: 1.05, ease: 'power2.inOut', stagger: 0.012 }, 0.42);
+  tl.to(met,      { opacity: 1, y: 0, duration: 0.50, ease: 'soso' }, 0.62);
+  tl.to(rule,     { scaleX: 1, duration: 0.60, ease: 'soso' }, 0.80);
+
+  /* 2 · le tre righe a cascata: data, traccia, poi il riempimento col numero */
+  rows.forEach(function (r, i) {
+    var b = 1.05 + i * 0.22;
+    tl.to(r.dtxt, { yPercent: 0, duration: 0.68, ease: 'soso' }, b);
+    tl.to(r.bar,  { scaleX: 1, duration: 0.52, ease: 'soso' }, b + 0.06);
+    tl.to(r.pct,  { opacity: 1, y: 0, duration: 0.42, ease: 'soso' }, b + 0.10);
+    /* barra e numero: stessa partenza, stessa durata, stessa ease → arrivano insieme */
+    tl.to(r.fill, { scaleX: r.v / 100, duration: 1.20, ease: 'soso' }, b + 0.50);
+    tl.to(r.roll, { yPercent: -100 * (N - 1) / N, duration: 1.20, ease: 'soso' }, b + 0.50);
+    tl.to(r.sub,  { opacity: 1, y: 0, duration: 0.45, ease: 'soso' }, b + 0.80);
+  });
+
+  /* 3 · il piede arriva mentre le barre finiscono di riempirsi */
+  tl.to(logo,     { opacity: 1, y: 0, duration: 0.55, ease: 'soso' }, 2.10);
+  tl.to(dates,    { opacity: 1, y: 0, duration: 0.50, ease: 'soso' }, 2.30);
+  tl.to(ctaLines, { yPercent: 0, duration: 0.75, ease: 'soso', stagger: 0.08 }, 2.45);
+
+  /* 4 · tenuta: si legge il confronto. Solo la barra più piena respira, appena:
+     due respiri lenti, e torna esatta a scaleY 1 (repeat pari). */
+  tl.to(fullest.bar, { scaleY: 1.14, duration: HOLD_D / 4, ease: 'sine.inOut', yoyo: true, repeat: 3 }, HOLD);
+
+  /* 5 · uscita: tutto sale fuori dalle maschere, le barre si ritirano nel verso
+     in cui erano arrivate. A fine corsa lo stage è bianco vuoto. */
+  rows.forEach(function (r, i) {
+    var e = EXIT + i * 0.10;
+    tl.to(r.sub,   { opacity: 0, y: -16, duration: 0.30, ease: 'power2.in' }, e);
+    tl.set(r.bar,  { transformOrigin: '100% 50%' }, e + 0.05);
+    tl.to(r.bar,   { scaleX: 0, duration: 0.55, ease: 'power2.in' }, e + 0.05);
+    tl.to(r.dtxt,  { yPercent: -110, duration: 0.45, ease: 'power2.in' }, e + 0.10);
+    tl.to(r.pct,   { opacity: 0, y: -26, duration: 0.40, ease: 'power2.in' }, e + 0.10);
+  });
+  tl.to(met,      { opacity: 0, y: -20, duration: 0.30, ease: 'power2.in' }, EXIT + 0.15);
+  tl.set(rule,    { transformOrigin: '100% 50%' }, EXIT + 0.20);
+  tl.to(rule,     { scaleX: 0, duration: 0.40, ease: 'power2.in' }, EXIT + 0.20);
+  tl.to(ttlLines, { yPercent: -110, duration: 0.50, ease: 'power2.in', stagger: 0.06 }, EXIT + 0.20);
+  tl.to(logo,     { opacity: 0, y: -24, duration: 0.40, ease: 'power2.in' }, EXIT + 0.25);
+  tl.to(dates,    { opacity: 0, y: -20, duration: 0.40, ease: 'power2.in' }, EXIT + 0.25);
+  tl.to(ctaLines, { yPercent: -110, duration: 0.45, ease: 'power2.in', stagger: 0.05 }, EXIT + 0.30);
+
+  /* respiro bianco finale: porta il ciclo a TOT esatti */
+  tl.to({}, { duration: 0.50 }, TOT - 0.50);
+
+  /* rende il fotogramma 0 PRIMA di accendere il quadro (niente lampo di testi finiti) */
+  tl.seek(0.001);
+  frame.style.visibility = 'visible';
+  tl.play(0);
+  /* Solo animazione d'entrata (richiesta 2026-07-29): la grafica si compone
+     e RESTA. Le tween d'uscita vengono buttate via e il ciclo non si ripete
+     — un reel informativo deve finire sul dato leggibile, non svuotarsi. */
+  SG.noExit(tl, EXIT);
+
+
+  window.TL = tl; /* per scrub/verifica deterministica */
+
+  /* guardiano: se il rAF è strozzato e l'intro non parte, salta allo stato pieno
+     e leggibile invece di restare su un quadro bianco */
+  setTimeout(function () { if (tl.time() < 0.1) tl.seek(HOLD + 1); }, 3000);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<title>Sottosopra — Ledwall · Player</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #000; height: 100%; overflow: hidden; }
+  iframe { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; background: #000; }
+  #veil { position: fixed; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity 0.6s ease; }
+</style>
+</head>
+<body>
+<!-- PLAYER DA LEDWALL: rotazione automatica della collezione.
+     Uso: aprire player.html fullscreen (Chrome --kiosk) sulla macchina del ledwall.
+     Parametri: ?t=25 (secondi per scena) · ?scenes=titoloni,flip,respiro (sottoinsieme)
+     · ?day=ven|sab|dom|gio (giornata per la scena palco; default = data reale) -->
+<iframe id="frame" src="about:blank"></iframe>
+<div id="veil"></div>
+<script>
+var q = new URLSearchParams(location.search);
+var T = (parseFloat(q.get('t')) || 25) * 1000;
+var day = q.get('day') ? '?day=' + q.get('day') : '';
+
+var ALL = {
+  titoloni:    'titoloni.html',
+  flip:        'flip.html',
+  palco:       'palco.html' + day,
+  ribbons:     'ribbons.html',
+  eco:         'eco.html',
+  finestre:    'finestre.html',
+  marquee:     'marquee.html',
+  date:        'date.html',
+  contatore:   'contatore.html',
+  qr:          'qr.html',
+  respiro:     'respiro.html',
+  foto:        'foto.html',
+  prossimo:    'prossimo.html' + day,
+  istituzioni: 'istituzioni.html',
+  splitflap:   'splitflap.html',
+  zoom:        'zoom.html',
+  onda:        'onda.html',
+  numeri:      'numeri.html',
+  lineup:      'lineup.html',
+  persiane:    'persiane.html',
+  serigrafia:  'serigrafia.html',
+  social:      'social.html',
+  crew:        'crew.html',
+  notte:       'notte.html',
+  /* istituzioni: quattro impianti diversi, si alternano nel giro */
+  istituzioniDuo:       'istituzioni-duo.html',
+  istituzioniLedger:    'istituzioni-ledger.html',
+  istituzioniManifesto: 'istituzioni-manifesto.html',
+  istituzioniSigillo:   'istituzioni-sigillo.html',
+  /* serate: seguono la giornata (?day= o data reale) */
+  serate:      'serate.html' + day,
+  stasera:     'stasera.html' + day,
+  domani:      'domani.html' + day,
+  restano:     'restano.html' + day,
+  gratis:      'gratis.html',
+  fullpass:    'fullpass.html',
+};
+/* Ordine di regia: si alterna attivo → quieto → attivo, le scene di servizio
+   (prossimo, QR, partner, istituzioni) tornano a intervalli regolari, e le due
+   più "informative" non capitano mai una accanto all'altra. */
+var DEFAULT = [
+  'prossimo', 'stasera', 'ribbons', 'eco', 'respiro',
+  'palco', 'splitflap', 'finestre', 'serate', 'zoom',
+  'prossimo', 'titoloni', 'istituzioniDuo', 'onda', 'domani',
+  'crew', 'marquee', 'qr', 'numeri', 'serigrafia',
+  'prossimo', 'restano', 'istituzioniLedger', 'flip', 'date',
+  'stasera', 'contatore', 'social', 'persiane', 'fullpass',
+  'prossimo', 'lineup', 'istituzioniManifesto', 'zoom', 'domani',
+  'foto', 'splitflap', 'istituzioniSigillo', 'onda', 'notte',
+  'prossimo', 'serate', 'istituzioni', 'eco', 'stasera',
+];
+
+/* Il giovedì la serata è a ingresso libero: la scena «gratis» entra in
+   rotazione solo quel giorno (le altre sere direbbe una cosa falsa). */
+var isGio = (q.get('day') || (function () {
+  var d = new Date();
+  var iso = String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  return { '07-30': 'gio', '07-31': 'ven', '08-01': 'sab', '08-02': 'dom' }[iso];
+})()) === 'gio';
+if (isGio) DEFAULT.splice(3, 0, 'gratis');
+
+var list = (q.get('scenes') ? q.get('scenes').split(',') : DEFAULT)
+  .filter(function (k) { return ALL[k]; })
+  .map(function (k) { return ALL[k]; });
+
+var frame = document.getElementById('frame');
+var veil = document.getElementById('veil');
+var i = 0;
+
+function show(idx) {
+  veil.style.opacity = '1';
+  setTimeout(function () {
+    frame.src = list[idx];
+    setTimeout(function () { veil.style.opacity = '0'; }, 250);
+  }, 620);
+}
+frame.src = list[0];
+setInterval(function () { i = (i + 1) % list.length; show(i); }, T);
+</script>
+</body>
+</html>

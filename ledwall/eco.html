@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<title>Sottosopra — Ledwall · Eco tipografico</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  /* pila di 6 righe SOTTOSOPRA, edge-to-edge, distribuite in verticale */
+  #rows {
+    position: absolute; inset: 40px 34px 70px;
+    display: flex; flex-direction: column; justify-content: space-between;
+    visibility: hidden; /* svelato via JS dopo il setup (niente flash) */
+  }
+  #rows .just { font-size: 86px; }
+  /* il flip è una TESSERA che si gira sul suo asse orizzontale: resta nel proprio
+     binario e non spazza le righe vicine (la rotazione in piano lo faceva). */
+  #rows { perspective: 1800px; }
+  #rows .just { transform-style: preserve-3d; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage">
+    <div id="rows">
+      <div class="just" data-text="Sottosopra"></div>
+      <div class="just" data-text="Sottosopra"></div>
+      <div class="just" data-text="Sottosopra"></div>
+      <div class="just" data-text="Sottosopra"></div>
+      <div class="just" data-text="Sottosopra"></div>
+      <div class="just" data-text="Sottosopra"></div>
+    </div>
+    <div class="meta"><span>Sottosopra</span><span>Dal 2017</span></div>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script src="vendor/CustomEase.min.js"></script>
+<script src="_shared.js"></script>
+<script>
+LW.ready(function () {
+  var justs = [].slice.call(document.querySelectorAll('#rows .just'));
+  var lines = [];
+  /* parola singola → LW.justify distribuisce le LETTERE edge-to-edge,
+     ogni riga dentro la sua .lnmask (overflow hidden) per il masked reveal */
+  justs.forEach(function (j) { lines = lines.concat(LW.justify(j)); });
+
+  /* stato iniziale: righe sotto la maschera, poi la pila diventa visibile */
+  gsap.set(lines, { yPercent: 110 });
+  gsap.set('#rows', { visibility: 'visible' });
+
+  /* una riga diversa si capovolge a ogni ciclo (bande spaziali distinte) */
+  var FLIPS = [2, 4, 1, 3];
+
+  /* ── master loop · 25.2s (griglia 0.6s) ──
+     0.0–1.2   reveal a cascata dal centro
+     1.8–24.0  4 cicli da 6s: flip 1.2s → tenuta capovolta 1.8s → ritorno 1.2s
+     24.3–24.9 le righe rientrano sotto la maschera (chiusura esatta del loop)
+     24.9–25.2 nero, respiro, si riparte */
+  var tl = gsap.timeline({ repeat: -1 });
+
+  /* respiro continuo della pila: 8 semiperiodi da 3.15s = 25.2s esatti,
+     scale torna a 1 sull'ultimo frame (mai on/off, mai fermo) */
+  tl.to('#rows', { scale: 1.01, duration: 3.15, ease: 'sine.inOut', yoyo: true, repeat: 7 }, 0);
+
+  /* 1 · masked reveal a cascata, dal centro verso i bordi */
+  tl.to(lines, { yPercent: 0, duration: 0.9, ease: 'soso',
+                 stagger: { each: 0.12, from: 'center' } }, 0);
+
+  /* 2 · il gesto: ogni ciclo UNA riga si capovolge come una tessera e poi torna.
+     rotationX = asse orizzontale: la riga resta nel suo binario (niente sciabolata
+     diagonale sulle vicine) e a metà corsa è di taglio — il "sottosopra" si legge
+     nel momento in cui riappare rovesciata. Prosegue a 360° (stessa direzione);
+     il set a 0 è invisibile perché 360 ≡ 0. */
+  FLIPS.forEach(function (r, k) {
+    var t0 = 1.8 + k * 6; /* 1.8 · 7.8 · 13.8 · 19.8 */
+    tl.to(justs[r],  { rotationX: 180, duration: 1.2, ease: 'power2.inOut' }, t0);
+    tl.to(justs[r],  { rotationX: 360, duration: 1.2, ease: 'power2.inOut' }, t0 + 3.0);
+    tl.set(justs[r], { rotationX: 0 }, t0 + 4.2);
+  });
+
+  /* 3 · le righe rientrano sotto la maschera: ultimo frame ≡ primo frame */
+  tl.to(lines, { yPercent: 110, duration: 0.6, ease: 'power2.in',
+                 stagger: { each: 0.05, from: 'edges' } }, 24.3);
+
+  window.TL = tl; /* per la verifica a scrub */
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<title>Sottosopra — Ledwall · Stasera si entra gratis</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  /* «STASERA SI ENTRA GRATIS» — il titolone sale dalle maschere e l'aria si apre
+     nei gap; POI il box bianco cresce dal basso e RIVELA «INGRESSO LIBERO»:
+     quel testo è nero, quindi esiste solo dove è già arrivato il bianco.
+     Una sola idea organizzante, un solo colpo. */
+
+  #inner {
+    position: absolute; inset: 34px 34px 62px;
+    display: flex; flex-direction: column; justify-content: center;
+  }
+  /* flex:0 0 auto → l'altezza resta quella naturale del contenuto: è la misura
+     su cui il fit decide il corpo del titolone (se si potesse comprimere, il
+     confronto con l'altezza disponibile mentirebbe). */
+  #col { flex: 0 0 auto; width: 100%; }
+
+  #ttl { font-size: 150px; }        /* corpo definitivo fissato dal JS (fit) */
+
+  #boxwrap { overflow: hidden; margin-top: 44px; }   /* maschera per l'uscita */
+  #boxin { position: relative; padding: 34px 40px; }
+  #boxbg {
+    position: absolute; inset: 0; background: var(--fg);
+    transform-origin: 50% 100%;     /* cresce dal basso */
+  }
+  #boxtext {
+    position: relative; z-index: 1;
+    display: flex; justify-content: space-between; align-items: center;
+    color: #000; font-size: 48px; line-height: 1; text-transform: uppercase;
+  }
+  #boxtext .bsp { flex: 0 0 auto; width: 0.34em; }   /* lo spazio tra le due parole */
+
+  #foot { overflow: hidden; margin-top: 22px; }
+  #footin { display: flex; justify-content: space-between; line-height: 1.2; }
+  #footin span:last-child { margin-right: -0.18em; } /* compensa il letter-spacing finale */
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage">
+    <div id="inner">
+      <div id="col">
+        <div class="just" id="ttl"></div>
+        <div id="boxwrap">
+          <div id="boxin">
+            <div id="boxbg"></div>
+            <div id="boxtext"></div>
+          </div>
+        </div>
+        <div id="foot">
+          <div class="label" id="footin">
+            <span>Giovedì 30 luglio</span><span>·</span><span>Dalle 18:00</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="meta"><span>Sottosopra 2026</span><span>Giardini del Castello</span></div>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script src="vendor/CustomEase.min.js"></script>
+<script src="_shared.js"></script>
+<script>
+/* giorno da ?day=gio|ven|sab|dom, altrimenti dalla data reale, fallback ven
+   (stesso pattern di palco.html). Questa scena è del GIOVEDÌ: se il giorno non è
+   quello non mente — dice «GIOVEDÌ SI ENTRA GRATIS» invece di «STASERA». */
+function pickDay() {
+  var ok = { gio: 1, ven: 1, sab: 1, dom: 1 };
+  var q = new URLSearchParams(location.search).get('day');
+  if (q && ok[q]) return q;
+  var iso = new Date().toISOString().slice(5, 10);
+  return { '07-30': 'gio', '07-31': 'ven', '08-01': 'sab', '08-02': 'dom' }[iso] || 'ven';
+}
+
+LW.ready(function () {
+  var inner   = document.getElementById('inner');
+  var col     = document.getElementById('col');
+  var ttl     = document.getElementById('ttl');
+  var boxtext = document.getElementById('boxtext');
+  var boxbg   = document.getElementById('boxbg');
+  var boxin   = document.getElementById('boxin');
+  var footin  = document.getElementById('footin');
+
+  var titolo = pickDay() === 'gio' ? 'Stasera si entra gratis' : 'Giovedì si entra gratis';
+  ttl.setAttribute('data-text', titolo);
+  ttl.setAttribute('aria-label', titolo);
+
+  /* box: lettere distribuite edge-to-edge (lo spazio tra le parole è un elemento
+     largo 0.34em, così il gap di parola resta più aperto degli altri) */
+  boxtext.innerHTML = 'INGRESSO LIBERO'.split('').map(function (ch) {
+    return ch === ' ' ? '<span class="bsp"></span>' : '<span class="bl">' + ch + '</span>';
+  }).join('');
+
+  /* ── fit: niente deve mai sforare i 1034×689 ──────────────────────────
+     getBoundingClientRect è in px SCALATI dall'anteprima → si riporta in px CSS
+     dividendo per stageScale; clientWidth/offsetHeight sono già px CSS. */
+  var sc = LW.stageScale() || 1;
+  function rowW(el) {
+    var s = 0;
+    [].slice.call(el.children).forEach(function (k) { s += k.getBoundingClientRect().width; });
+    return s / sc;
+  }
+
+  /* 1 · il box: «INGRESSO LIBERO» deve stare tra i padding con aria da distribuire */
+  var bfs = 48;
+  while (rowW(boxtext) > boxtext.clientWidth - 8 && bfs > 26) {
+    bfs -= 2; boxtext.style.fontSize = bfs + 'px';
+  }
+
+  /* 2 · il titolone: si riduce finché ogni riga entra in larghezza (una parola
+        lunga tipo «STASERA» non si spezza) e la colonna entra in altezza */
+  var lines = [];
+  function build(px) { ttl.style.fontSize = px + 'px'; lines = LW.justify(ttl); }
+  function tooWide() {
+    return lines.some(function (ln) { return rowW(ln) > ln.clientWidth; });
+  }
+  function tooTall() { return col.offsetHeight > inner.clientHeight; }
+
+  var fs = 150;
+  build(fs);
+  while ((tooWide() || tooTall()) && fs > 76) { fs -= 4; build(fs); }
+
+  /* delta «compatto → giustificato»: l'aria che si aprirà nei gap */
+  lines.forEach(function (ln) {
+    var d = LW.packDeltas(ln);
+    [].slice.call(ln.children).forEach(function (wd, i) { wd._dx = d[i]; });
+  });
+  var words = [].slice.call(ttl.querySelectorAll('.wd'));
+
+  /* ── timeline: 20.0s esatti, ultimo frame ≡ primo ──────────────────── */
+  var tl = gsap.timeline({ repeat: -1 });
+
+  /* stato iniziale dentro la timeline (così a ogni giro viene ri-applicato) */
+  tl.set(lines,  { yPercent: 110 }, 0);
+  tl.set(words,  { x: function (i, t) { return t._dx || 0; } }, 0);
+  tl.set(boxbg,  { scaleY: 0 }, 0);
+  tl.set(boxin,  { yPercent: 0 }, 0);
+  tl.set(footin, { yPercent: 110 }, 0);
+  tl.set(col,    { scale: 1 }, 0);
+
+  /* 1 · masked line reveal del titolone */
+  tl.to(lines, { yPercent: 0, duration: 0.9, ease: 'soso', stagger: 0.1 }, 0.25);
+  /* 2 · l'aria si apre: le parole si distribuiscono edge-to-edge */
+  tl.to(words, { x: 0, duration: 1.25, ease: 'expo.inOut', stagger: 0.014 }, 0.85);
+  /* 3 · il colpo: il bianco sale dal basso e scopre il nero «INGRESSO LIBERO» */
+  tl.to(boxbg, { scaleY: 1, duration: 1.0, ease: 'soso' }, 2.6);
+  /* 4 · la riga di servizio sale dalla sua maschera */
+  tl.to(footin, { yPercent: 0, duration: 0.75, ease: 'soso' }, 3.75);
+  /* 5 · tenuta 14s: il blocco respira, mai fermo del tutto (4 mezze onde da 3.5s
+        → a 18.5 è tornato esattamente al valore di partenza) */
+  tl.to(col, { scale: 1.01, duration: 3.5, ease: 'sine.inOut', yoyo: true, repeat: 3 }, 4.5);
+  /* 6 · uscita verso l'alto: righe, box e riga di servizio dentro le maschere */
+  tl.to(lines,  { yPercent: -110, duration: 0.55, ease: 'power2.in', stagger: 0.06 }, 18.5);
+  tl.to(boxin,  { yPercent: -110, duration: 0.55, ease: 'power2.in' }, 18.65);
+  tl.to(footin, { yPercent: -110, duration: 0.55, ease: 'power2.in' }, 18.8);
+  tl.to({}, { duration: 0.6 }, 19.4);   /* respiro nero → ciclo di 20.0s esatti */
+
+  /* rende SUBITO il tempo 0 (sincrono): senza questo il primo frame mostrerebbe
+     lo stato finale del CSS prima che il tick applichi i set */
+  tl.pause(0);
+  tl.play();
+
+  /* Guardiano: dopo 3s la timeline dovrebbe essere a ~3s. Se il rAF è strozzato
+     (pagina in un iframe di sfondo, come nel player) l'intro non parte mai e il
+     muro resterebbe nero → si salta allo stato leggibile della tenuta.
+     setTimeout continua a scattare anche quando requestAnimationFrame no. */
+  setTimeout(function () { if (tl.time() < 2) tl.time(5.2); }, 3000);
+
+  window.TL = tl; /* per scrub/verifica deterministica */
+});
+</script>
+</body>
+</html>

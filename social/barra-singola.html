@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<title>Sottosopra — Social · Una serata per volta</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  /* ── UNA SERATA PER VOLTA ──────────────────────────────────────────────
+     Tre schermate in sequenza, una per serata: data gigante giustificata,
+     nome dell'artista, UNA barra che si riempie e la percentuale che conta
+     insieme a lei. Logo + date + CTA fissi in fondo per tutte e tre.
+     Misure calcolate sulle metriche reali di SoSo26 (upm 2048, cap 0.727em,
+     asc 0.969 / desc 0.241 → con line-height:1 l'inchiostro sta fra 0.123em
+     e 0.877em: niente viene tagliato dalle maschere). */
+
+  body.reel {
+    --pad: 64px;  --ftop: 220px;  --fbot: 420px;   /* safe area Instagram */
+    --datesize: 220px; --artsize: 50px; --mesesize: 32px;
+    --numsize: 300px;  --ch: 300px;   /* --ch = --numsize: cella del rullo */
+    --barh: 90px;      --metsize: 34px;
+    --g-sub: 30px; --g-bar: 26px; --g-met: 24px;
+    --g-foot: 40px; --footpad: 22px; --g-cta: 16px; --g-when: 10px;
+    --logow: 300px; --ctasize: 42px; --footsize: 26px;
+  }
+  body.post {
+    --pad: 64px;  --ftop: 80px;  --fbot: 80px;     /* margine di cortesia */
+    --datesize: 200px; --artsize: 48px; --mesesize: 30px;
+    --numsize: 270px;  --ch: 270px;
+    --barh: 78px;      --metsize: 30px;
+    --g-sub: 26px; --g-bar: 22px; --g-met: 20px;
+    --g-foot: 32px; --footpad: 20px; --g-cta: 14px; --g-when: 8px;
+    --logow: 260px; --ctasize: 38px; --footsize: 23px;
+  }
+
+  /* la finestra viva: dentro le safe area in entrambi i formati */
+  .frame {
+    position: absolute; left: var(--pad); right: var(--pad);
+    top: var(--ftop); bottom: var(--fbot);
+    display: flex; flex-direction: column;
+  }
+  #screens { position: relative; flex: 1 1 auto; }
+
+  /* una schermata: blocco-data in alto, blocco-barra in basso.
+     Lo spazio bianco in mezzo è il respiro del manifesto e si adatta
+     da solo alle due altezze. */
+  .screen {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; justify-content: space-between;
+    visibility: hidden;
+  }
+
+  .date { font-size: var(--datesize); }
+  .sub {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-top: var(--g-sub); line-height: 1;
+  }
+  .chi { font-size: var(--artsize); color: var(--fg); letter-spacing: 0.08em; white-space: nowrap; }
+  .mese { font-size: var(--mesesize); }
+
+  /* il numero: rullo di cifre in puro transform.
+     .roll e .sign hanno la STESSA altezza (--ch) e lo stesso corpo, ed
+     entrambi centrano il proprio contenuto → le linee di base coincidono
+     per costruzione, senza misurare niente. */
+  .num {
+    display: flex; align-items: flex-start; line-height: 1;
+    font-size: var(--numsize);
+    font-feature-settings: "ss07", "ss08", "liga", "calt", "tnum";
+  }
+  .roll { overflow: hidden; height: var(--ch); }
+  .strip { display: block; }
+  .cell {
+    display: flex; height: var(--ch);
+    align-items: center; justify-content: flex-end;
+    font-style: normal;
+  }
+  .sign { display: flex; height: var(--ch); align-items: center; margin-left: -0.05em; }
+
+  .bar { height: var(--barh); margin-top: var(--g-bar); }
+  .met { font-size: var(--metsize); margin-top: var(--g-met); line-height: 1; }
+
+  /* piede fisso: non si anima mai, così il loop si richiude senza scatti */
+  .foot {
+    margin-top: var(--g-foot);
+    border-top: 3px solid var(--fg); padding-top: var(--footpad);
+  }
+  .foot img { display: block; width: var(--logow); height: auto; }
+  .cta {
+    font-size: var(--ctasize); margin-top: var(--g-cta);
+    text-transform: uppercase; letter-spacing: 0.03em; line-height: 1;
+  }
+  .when { font-size: var(--footsize); margin-top: var(--g-when); line-height: 1; }
+
+  /* fasce coperte dall'interfaccia di Instagram (solo con ?safe=1) */
+  body.reel .safe .t { top: 0; height: 220px; }
+  body.reel .safe .b { bottom: 0; height: 420px; }
+  body.post .safe .t { top: 0; height: 80px; }
+  body.post .safe .b { bottom: 0; height: 80px; }
+  .safe .r { top: 0; bottom: 0; left: 900px; right: 0; }
+</style>
+</head>
+<body class="reel">
+<div id="wrap">
+  <div id="stage">
+    <div class="frame">
+      <div id="screens"></div>
+      <div class="foot">
+        <img src="media/sottosopra-logo-black.png" alt="Sottosopra" width="1921" height="215">
+        <div class="cta"></div>
+        <div class="when label"></div>
+      </div>
+    </div>
+    <div class="safe"><i class="t"></i><i class="b"></i><i class="r"></i></div>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script src="vendor/CustomEase.min.js"></script>
+<script src="_shared.js"></script>
+<script src="_dati.js"></script>
+<script>
+SG.ready(function () {
+  var D = window.DATI;
+  var host = document.getElementById('screens');
+
+  /* Tetto alle celle del rullo: la striscia resta sotto i 16384px (limite di
+     texture) anche a 300px per cella → nessun layer gigante in cattura. */
+  var NCAP = 44;
+  var SPAN = 3.85;   /* durata di una schermata → 3 × 3.85 = 11,55s di loop */
+
+  document.querySelector('.cta').textContent = D.cta;
+  document.querySelector('.when').textContent = D.date;
+
+  var items = D.serate.map(function (s) {
+    var sc = document.createElement('div');
+    sc.className = 'screen';
+    sc.innerHTML =
+      '<div class="head">' +
+        '<div class="just date"></div>' +
+        '<div class="sub"><span class="chi label"></span><span class="mese label"></span></div>' +
+      '</div>' +
+      '<div class="gauge">' +
+        '<div class="num"><span class="roll"><span class="strip"></span></span><span class="sign">%</span></div>' +
+        '<div class="bar"><span class="fill"></span></div>' +
+        '<div class="met label"></div>' +
+      '</div>';
+    host.appendChild(sc);
+
+    /* testi: sempre dai dati, mai a mano */
+    var dateEl = sc.querySelector('.date');
+    dateEl.setAttribute('data-text', s.g + ' ' + s.d);
+    dateEl.setAttribute('aria-label', s.g + ' ' + s.d);
+    sc.querySelector('.chi').textContent = s.chi;
+    sc.querySelector('.mese').textContent = s.mese;
+    sc.querySelector('.met').textContent = D.metrica;
+
+    /* il rullo: valori equispaziati da 0 a pct, così il numero e la barra
+       procedono con la stessa legge e arrivano insieme */
+    var pct = Math.max(0, Math.min(100, s.pct));
+    var n = Math.min(NCAP, pct + 1);
+    var strip = sc.querySelector('.strip');
+    for (var k = 0; k < n; k++) {
+      var c = document.createElement('i');
+      c.className = 'cell';
+      c.textContent = n > 1 ? Math.round(pct * k / (n - 1)) : pct;
+      strip.appendChild(c);
+    }
+
+    /* misure con la schermata visibile (visibility:hidden ha layout, ma
+       misuriamo da visibile come sul ledwall: zero sorprese) */
+    sc.style.visibility = 'visible';
+    var lines = SG.justify(dateEl);
+    /* soglia più bassa del default: le righe-data sono due parole corte
+       («SAB» + «01», rapporto d'inchiostro 0,62-0,78) e vanno giustificate
+       edge-to-edge in ENTRAMBI i formati. Il tetto serve contro le parole
+       singole che si sfarinano, non è questo il caso. */
+    SG.capAir(lines, 0.55);
+    lines.forEach(function (line) {
+      var d = SG.packDeltas(line);
+      [].slice.call(line.children).forEach(function (wd, i) { wd._dx = d[i]; });
+    });
+    var ch = strip.firstChild.offsetHeight ||
+             parseFloat(getComputedStyle(sc.querySelector('.num')).getPropertyValue('--ch')) || 300;
+    sc.style.visibility = '';
+
+    return {
+      el: sc, lines: lines,
+      words: [].slice.call(dateEl.querySelectorAll('.wd')),
+      sub: sc.querySelector('.sub'),
+      gauge: sc.querySelector('.gauge'),
+      fill: sc.querySelector('.fill'),
+      strip: strip,
+      pct: pct, travel: ch * (n - 1),
+    };
+  });
+
+  var tl = gsap.timeline({ repeat: -1 });
+
+  items.forEach(function (o, i) {
+    var t = i * SPAN;
+
+    /* stato di partenza: righe sotto la maschera, parole compatte,
+       barra a zero, rullo sullo zero, tutto invisibile → il primo frame
+       del loop è identico all'ultimo (solo bianco + piede) */
+    tl.set(o.el, { visibility: 'visible' }, t);
+    tl.set(o.lines, { yPercent: 110 }, t);
+    tl.set(o.words, { x: function (idx, tg) { return tg._dx || 0; } }, t);
+    tl.set(o.sub, { opacity: 0, y: 36 }, t);
+    tl.set(o.gauge, { opacity: 0, y: 44 }, t);
+    tl.set(o.fill, { scaleX: 0 }, t);
+    tl.set(o.strip, { y: 0 }, t);
+
+    /* 1 · la data sale da sotto la maschera */
+    tl.to(o.lines, { yPercent: 0, duration: 0.65, ease: 'soso', stagger: 0.10 }, t);
+    /* 2 · l'aria si apre: le parole si distribuiscono edge-to-edge */
+    tl.to(o.words, { x: 0, duration: 0.95, ease: 'expo.inOut', stagger: 0.012 }, t + 0.22);
+    /* 3 · chi suona */
+    tl.to(o.sub, { opacity: 1, y: 0, duration: 0.50, ease: 'soso' }, t + 0.38);
+    /* 4 · il misuratore entra e si riempie: barra in scaleX da sinistra e
+           rullo del numero con la STESSA durata e la STESSA ease → arrivano
+           allo stesso istante. Il conteggio è puro transform (nessun
+           onUpdate: in seek non verrebbe renderizzato). */
+    tl.to(o.gauge, { opacity: 1, y: 0, duration: 0.45, ease: 'soso' }, t + 0.50);
+    tl.to(o.fill, { scaleX: o.pct / 100, duration: 1.25, ease: 'soso' }, t + 0.55);
+    tl.to(o.strip, { y: -o.travel, duration: 1.25, ease: 'soso', force3D: false }, t + 0.55);
+    /* 5 · tenuta 1,5s sul dato, poi uscita verso l'alto */
+    tl.to(o.lines, { yPercent: -110, duration: 0.42, ease: 'power2.in', stagger: 0.06 }, t + 3.30);
+    tl.to([o.sub, o.gauge], { opacity: 0, y: -30, duration: 0.38, ease: 'power2.in' }, t + 3.32);
+    tl.set(o.el, { visibility: 'hidden' }, t + 3.78);
+  });
+
+  /* chiude il ciclo su una durata esatta (ultimo frame ≡ primo: solo piede) */
+  tl.to({}, { duration: 0.05 }, SPAN * items.length - 0.05);
+  /* Solo animazione d'entrata (richiesta 2026-07-29): la grafica si compone
+     e RESTA. Le tween d'uscita vengono buttate via e il ciclo non si ripete
+     — un reel informativo deve finire sul dato leggibile, non svuotarsi. */
+  SG.noExit(tl, (items.length - 1) * SPAN + 3.30);
+
+
+  window.TL = tl;
+
+  /* guardiano: se il rAF è strozzato e la timeline non è partita, salta a
+     schermata piena — il seek renderizza anche senza frame */
+  setTimeout(function () { if (tl.time() < 0.05) tl.seek(1.9); }, 3000);
+});
+</script>
+</body>
+</html>

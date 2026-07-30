@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<title>Sottosopra — Social · Ledger</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  /* ── LEDGER · il registro editoriale ───────────────────────────────────────
+     Una pagina del sito che si anima. Righe separate da regoli 3px: data a
+     sinistra, chi suona nel mezzo, la percentuale a destra — e sotto al testo,
+     dentro la stessa riga, la barra sottile che misura il riempimento.
+     Nessun effetto: tutto è affidato alla composizione e agli allineamenti,
+     che NON sono stimati ma misurati a runtime (vedi il blocco «colonne»). */
+
+  #stage {
+    --cell: 88px;      /* altezza della riga di testo = cella del rullo cifre */
+    --fdate: 52px;
+    --fpct: 72px;
+    --fwho: 30px;      /* rimpicciolito dal JS fin quando il nome ci sta */
+    --cdate: 300px;    /* misurate a runtime: qui solo un fallback */
+    --cpct: 170px;
+    --gapbar: 8px;     /* stacco testo→barra, corretto a runtime */
+  }
+  /* Reel: dentro le fasce di Instagram (alto 220 · basso 420 · destra 180).
+     Il contenuto vivo sta fra y=250 e y=1480, con margine. */
+  body.reel #stage { --pl: 76px; --pr: 196px; --pt: 250px; --pb: 440px; --fh: 82px; --fcta: 44px; --rpt: 23px; --rpb: 40px; }
+  body.post #stage { --pl: 80px; --pr: 80px;  --pt: 96px;  --pb: 96px;  --fh: 92px; --fcta: 48px; --rpt: 13px; --rpb: 30px; }
+
+  #frame {
+    position: absolute;
+    left: var(--pl); right: var(--pr); top: var(--pt); bottom: var(--pb);
+    display: flex; flex-direction: column; justify-content: space-between;
+    visibility: hidden;              /* svelato dal JS a stato iniziale posato */
+  }
+
+  /* ── testa ── */
+  .kick { display: block; font-size: 26px; margin-bottom: 30px; }
+  .h { font-size: var(--fh); }       /* due blocchi impilati = interlinea 1 */
+
+  /* ── il registro ── */
+  /* la testata della colonna: allineata a destra come le percentuali */
+  .metric { display: block; text-align: right; font-size: 24px; margin-bottom: 22px; }
+  .rule {
+    display: block; height: 3px; background: var(--line);
+    transform: scaleX(0); transform-origin: 0% 50%;
+  }
+  /* padding asimmetrico: sopra le maiuscole c'è già del vuoto nella riga di
+     testo, quindi il padding alto è più corto (calcolato dal JS) */
+  .row { padding: var(--rpt) 0 var(--rpb); }
+  .rmask { overflow: hidden; }       /* maschera del reveal: alta come la riga */
+  .rline {
+    display: grid;
+    grid-template-columns: var(--cdate) minmax(0, 1fr) var(--cpct);
+    column-gap: 22px; align-items: baseline;
+  }
+  .rdate { font-size: var(--fdate); line-height: 1; text-transform: uppercase; white-space: nowrap; }
+  /* NB: niente overflow:hidden qui — renderebbe la cella uno scroll container
+     e il browser sintetizzerebbe la linea di base dal bordo, sfasando il nome
+     rispetto a data e percentuale. Che il nome ci stia lo garantisce il JS. */
+  .rwho { font-size: var(--fwho); line-height: 1; letter-spacing: 0.1em; white-space: nowrap; }
+  .rwho .wt { display: inline-block; }
+  /* la percentuale: un rullo di cifre in puro transform.
+     .psz (invisibile) tiene la larghezza E la linea di base della colonna;
+     .pmask ci si sovrappone esatta, così le cifre del rullo cadono
+     precisamente sulla stessa base della data e del nome. */
+  .rpct { position: relative; font-size: var(--fpct); line-height: var(--cell); text-align: right; }
+  .psz { visibility: hidden; }
+  .pmask { position: absolute; left: 0; right: 0; bottom: 0; height: var(--cell); overflow: hidden; }
+  .roll { display: block; }
+  .roll span { display: block; height: var(--cell); line-height: var(--cell); text-align: right; }
+  /* marcatore ad altezza zero: il suo bordo cade ESATTAMENTE sulla linea di
+     base del numero → serve al JS per misurare il vuoto sotto le cifre */
+  .bl { display: inline-block; width: 0; height: 0; vertical-align: baseline; }
+
+  .bar { height: 10px; margin-top: var(--gapbar); }
+
+  /* ── piede ── */
+  .fdate { display: block; font-size: 24px; margin-bottom: 24px; }
+  .cta { font-size: var(--fcta); }
+  .logo { display: block; width: 260px; height: auto; margin-top: 30px; }
+</style>
+</head>
+<body class="reel">
+<div id="wrap">
+  <div id="stage">
+    <div id="frame">
+
+      <div class="top">
+        <span class="kick label" id="kick">Sottosopra 2026</span>
+        <div class="just h" data-text=""></div>
+        <div class="just h" data-text="" hidden></div>
+      </div>
+
+      <div class="ledger" id="ledger">
+        <span class="metric label" id="metric"></span>
+        <!-- righe e regoli: costruiti dal JS su window.DATI -->
+      </div>
+
+      <div class="foot">
+        <span class="fdate label" id="fdate"></span>
+        <div class="just cta" id="cta"></div>
+        <img class="logo" src="media/sottosopra-logo-black.png" alt="Sottosopra" width="1921" height="215">
+      </div>
+
+    </div>
+
+    <div class="safe" aria-hidden="true">
+      <i style="top:0;height:220px"></i>
+      <i style="bottom:0;height:420px"></i>
+      <i style="top:0;bottom:0;left:auto;right:0;width:180px;height:auto"></i>
+    </div>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script src="vendor/CustomEase.min.js"></script>
+<script src="_shared.js"></script>
+<script src="_dati.js"></script>
+<script>
+SG.ready(function () {
+  SG.setTitle('.just.h');   /* titolo da _dati.js */
+  var D = window.DATI;
+  var S = document.getElementById('stage');
+  var F = document.getElementById('frame');
+  var $$ = function (sel) { return [].slice.call(document.querySelectorAll(sel)); };
+
+  /* la curva del riempimento: la barra E il numero seguono questa, insieme */
+  var EZ = 'power2.inOut';
+  var ez = gsap.parseEase(EZ);
+  var SLOTS = 34;      /* campionamenti del conteggio lungo la curva */
+  var BAR_D = 2.1;     /* durata del riempimento */
+
+  /* ── testi: sempre dai dati, mai a mano ── */
+  document.getElementById('metric').textContent = D.metrica;
+  document.getElementById('fdate').textContent = D.date;
+  var ctaEl = document.getElementById('cta');
+  ctaEl.setAttribute('data-text', D.cta);
+  ctaEl.setAttribute('aria-label', D.cta);
+
+  /* ── il registro: una riga per serata, un regolo per confine ──
+     Il rullo ha una cella per ogni valore DIVERSO che il conteggio attraversa
+     (i doppioni vicini si scartano: la cifra non deve tremare restando ferma).
+     La sincronia col riempimento la tiene l'ease-funzione del rullo, sotto. */
+  var ROLLS = [];
+  var out = '<i class="rule"></i>';
+  D.serate.forEach(function (s) {
+    var vals = [], i;
+    for (i = 0; i < SLOTS; i++) vals.push(Math.round(s.pct * ez(i / (SLOTS - 1))));
+    var cells = vals.filter(function (v, k) { return k === 0 || v !== vals[k - 1]; });
+    ROLLS.push({ vals: vals, cells: cells, pct: s.pct });
+    out +=
+      '<div class="row"><div class="rmask"><div class="rin">' +
+        '<div class="rline">' +
+          '<span class="rdate">' + s.g + ' ' + s.d + ' ' + s.mese + '</span>' +
+          '<span class="rwho label"><span class="wt">' + s.chi + '</span></span>' +
+          '<span class="rpct">' +
+            '<span class="psz" aria-hidden="true">' + s.pct + '%<i class="bl"></i></span>' +
+            '<span class="pmask"><span class="roll">' +
+              cells.map(function (v) { return '<span>' + v + '%</span>'; }).join('') +
+            '</span></span>' +
+          '</span>' +
+        '</div>' +
+        '<div class="bar"><i class="fill"></i></div>' +
+      '</div></div></div>' +
+      '<i class="rule"></i>';
+  });
+  document.getElementById('ledger').insertAdjacentHTML('beforeend', out);
+
+  /* ── colonne: MISURATE, non stimate ──
+     La colonna della data prende la larghezza della data più lunga; quella
+     della percentuale la larghezza del numero più lungo. Uguali su tutte e tre
+     le righe → nome e cifre incolonnati al pixel. */
+  var sc = function () { return SG.stageScale() || 1; };
+  var widest = function (sel) {
+    return Math.ceil($$(sel).reduce(function (m, el) {
+      return Math.max(m, el.getBoundingClientRect().width / sc());
+    }, 0)) + 2;
+  };
+  S.style.setProperty('--cdate', 'max-content');   /* per leggere il contenuto */
+  var cdate = widest('.rdate');
+  S.style.setProperty('--cdate', cdate + 'px');
+  S.style.setProperty('--cpct', widest('.psz') + 'px');
+
+  /* il nome di chi suona sta su una riga sola: si rimpicciolisce fin che serve
+     (misura del testo vs larghezza della colonna, entrambe alla scala reale) */
+  var texts = $$('.rwho .wt');
+  var fits = function () {
+    var k = sc();
+    return texts.every(function (t) {
+      return t.getBoundingClientRect().width / k <= t.parentNode.getBoundingClientRect().width / k - 1;
+    });
+  };
+  var fw = SG.isPost ? 30 : 28;
+  for (var g = 0; g < 30; g++) {
+    S.style.setProperty('--fwho', fw + 'px');
+    if (fits() || fw <= 14) break;
+    fw -= 1;
+  }
+
+  /* ── ritmo verticale della riga: misurato, non stimato ──
+     La cella del rullo è più alta delle cifre, quindi sotto la linea di base
+     resta del vuoto che falserebbe gli stacchi (la barra finirebbe più vicina
+     al regolo sotto che al proprio testo). Lo leggiamo dal marcatore .bl e
+     dalle metriche del carattere, e compensiamo stacco e padding alto. */
+  (function () {
+    var rp = document.querySelector('.rpct'), bl = document.querySelector('.bl');
+    if (!rp || !bl) return;
+    var cs = getComputedStyle(rp);
+    var cell = parseFloat(cs.lineHeight) || 88;
+    var fp = parseFloat(cs.fontSize) || 72;
+    var k = sc();
+    var base = (bl.getBoundingClientRect().top - rp.getBoundingClientRect().top) / k;
+    base = Math.min(Math.max(base, cell * 0.5), cell * 0.95);   /* rete di sicurezza */
+    var cap = fp * 0.72;
+    try {
+      var cx = document.createElement('canvas').getContext('2d');
+      cx.font = fp + 'px SoSo26';
+      var a = cx.measureText('86%').actualBoundingBoxAscent;
+      if (a) cap = Math.min(Math.max(a, fp * 0.55), fp * 0.9);
+    } catch (e) { /* metriche non disponibili: resta la stima */ }
+    var dead = Math.max(0, cell - base);                        /* vuoto sotto la base */
+    var over = Math.max(0, base - cap);                         /* vuoto sopra le maiuscole */
+    var rpb = parseFloat(getComputedStyle(S).getPropertyValue('--rpb')) || 34;
+    S.style.setProperty('--gapbar', Math.max(4, Math.round(26 - dead)) + 'px');
+    S.style.setProperty('--rpt', Math.max(8, Math.round(rpb - over)) + 'px');
+  })();
+
+  /* ── titoloni giustificati (motore del sito) ── */
+  $$('.just').forEach(function (j) {
+    var lines = SG.justify(j);
+    SG.capAir(lines);
+    lines.forEach(function (ln) {
+      var dx = SG.packDeltas(ln);
+      [].slice.call(ln.children).forEach(function (wd, i) { wd._dx = dx[i]; });
+    });
+  });
+
+  /* ── attori ── */
+  var kick   = document.getElementById('kick');
+  var metric = document.getElementById('metric');
+  var fdate  = document.getElementById('fdate');
+  var logo   = document.querySelector('.logo');
+  var hLines = $$('.h .ln');
+  var hWords = $$('.h .wd');
+  var rules  = $$('.rule');
+  var rins   = $$('.rin');
+  var fills  = $$('.fill');
+  var rollEls = $$('.roll');
+  var footer = [fdate, ctaEl, logo];
+
+  var compact = function (i, t) { return t._dx || 0; };
+
+  /* stato iniziale — applicato subito (primo fotogramma pulito) e ripetuto a
+     t=0 nella timeline, così il loop riparte identico e lo scrub è fedele */
+  function pose() {
+    gsap.set(hLines, { yPercent: 110 });
+    gsap.set(hWords, { x: compact });
+    gsap.set(rules, { scaleX: 0 });
+    gsap.set(rins, { yPercent: 110 });
+    gsap.set(fills, { scaleX: 0 });
+    gsap.set(rollEls, { yPercent: 0 });
+    gsap.set([kick, metric], { opacity: 0, y: 24 });
+    gsap.set(footer, { opacity: 0, y: 22 });
+  }
+  pose();
+  F.style.visibility = 'visible';
+
+  /* ── tempi (secondi) ── */
+  var T = {
+    kick: 0.06, h: 0.18, air: 0.70, rule: 0.90, metric: 0.95, row: 1.20,
+    bar: 2.60, foot: 3.70, hold: 5.15, out: 8.70, end: 10.50,
+  };
+
+  var tl = gsap.timeline({ repeat: -1 });
+
+  /* t=0 · la pagina bianca */
+  tl.set(hLines, { yPercent: 110 }, 0)
+    .set(hWords, { x: compact }, 0)
+    .set(rules, { scaleX: 0 }, 0)
+    .set(rins, { yPercent: 110 }, 0)
+    .set(fills, { scaleX: 0 }, 0)
+    .set(rollEls, { yPercent: 0 }, 0)
+    .set([kick, metric], { opacity: 0, y: 24 }, 0)
+    .set(footer, { opacity: 0, y: 22 }, 0);
+
+  /* 1 · la testa: il messaggio è leggibile entro 1,3s */
+  tl.to(kick, { opacity: 1, y: 0, duration: 0.6, ease: 'soso' }, T.kick)
+    .to(hLines, { yPercent: 0, duration: 1.0, ease: 'soso', stagger: 0.14 }, T.h)
+    .to(hWords, { x: 0, duration: 1.25, ease: 'power2.inOut', stagger: 0.012 }, T.air);
+
+  /* 2 · i regoli si tirano da sinistra, poi le righe salgono a cascata */
+  tl.to(rules, { scaleX: 1, duration: 0.75, ease: 'soso', stagger: 0.12 }, T.rule)
+    .to(metric, { opacity: 1, y: 0, duration: 0.55, ease: 'soso' }, T.metric)
+    .to(rins, { yPercent: 0, duration: 0.95, ease: 'soso', stagger: 0.12 }, T.row);
+
+  /* 3 · il dato: la barra si riempie in scaleX da sinistra e il numero conta
+     con lei — stessa curva, stesso attacco, stessa fine. Il rullo è in puro
+     transform e la sua ease-funzione mappa il tempo sulla cella giusta: così
+     la cifra mostrata è sempre quella che la barra ha appena raggiunto. */
+  fills.forEach(function (f, i) {
+    tl.to(f, { scaleX: ROLLS[i].pct / 100, duration: BAR_D, ease: EZ }, T.bar + i * 0.18);
+  });
+  rollEls.forEach(function (r, i) {
+    var d = ROLLS[i], n = d.cells.length, last = n - 1, slots = d.vals.length;
+    if (last < 1) return;
+    var idx = d.vals.map(function (v) { return d.cells.indexOf(v); });
+    tl.to(r, {
+      yPercent: -100 * last / n,
+      duration: BAR_D,
+      ease: function (p) { return idx[Math.min(slots - 1, Math.floor(p * slots))] / last; },
+    }, T.bar + i * 0.18);
+  });
+
+  /* 4 · il piede */
+  tl.to(footer, { opacity: 1, y: 0, duration: 0.7, ease: 'soso', stagger: 0.16 }, T.foot);
+
+  /* 5 · tenuta 3,5s: fermo. Nessun effetto — è un registro, non uno spot. */
+
+  /* 6 · uscita: tutto rientra da dove è venuto → ultimo frame = primo frame */
+  tl.to(rins, { yPercent: -110, duration: 0.65, ease: 'power2.in', stagger: 0.12 }, T.out)
+    .to([metric].concat(footer), { opacity: 0, y: -18, duration: 0.5, ease: 'power2.in', stagger: 0.07 }, T.out + 0.1)
+    .to(rules, { scaleX: 0, duration: 0.6, ease: 'power2.in', stagger: 0.09 }, T.out + 0.3)
+    .to(hLines, { yPercent: -110, duration: 0.65, ease: 'power2.in', stagger: 0.1 }, T.out + 0.4)
+    .to(kick, { opacity: 0, y: -18, duration: 0.5, ease: 'power2.in' }, T.out + 0.4)
+    .to({}, { duration: 0.6 }, T.end - 0.6);   /* respiro bianco: chiude il giro */
+  /* Solo animazione d'entrata (richiesta 2026-07-29): la grafica si compone
+     e RESTA. Le tween d'uscita vengono buttate via e il ciclo non si ripete
+     — un reel informativo deve finire sul dato leggibile, non svuotarsi. */
+  SG.noExit(tl, T.out);
+
+
+  window.TL = tl;
+
+  /* guardiano: se il rAF è strozzato e l'intro non parte, posa lo stato pieno */
+  var alive = false;
+  tl.eventCallback('onUpdate', function () { alive = true; });
+  setTimeout(function () { if (!alive) tl.seek(T.hold + 1); }, 3000);
+});
+</script>
+</body>
+</html>

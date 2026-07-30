@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<title>Sottosopra — Ledwall · Persiane</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  /* ── PERSIANE — forme 2D elementari che costruiscono spazio (rif. NONOTAK) ──
+     UNA sola idea: nove barre nere coprono lo stage come le stecche di una
+     persiana. Si aprono a scaglioni e sotto c'è la frase; si richiudono e,
+     al riparo del nero, la frase CAMBIA. Il gesto è la rivelazione: il testo
+     non entra mai, sta lì e viene scoperto.
+     Ciclo 22.8s = 2 segmenti da 11.4s (griglia 0.6s → 19 battiti a segmento). */
+
+  /* frase: sotto le stecche, mai animata se non dal respiro del blocco */
+  #board {
+    position: absolute; inset: 56px 34px 96px;
+    z-index: 1;
+    will-change: transform;
+  }
+  .phrase {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; justify-content: center;
+    visibility: hidden;            /* svelata dalla timeline, mai prima */
+  }
+
+  /* le stecche: passo 76.5px, altezza 78.5px → 2px di sovrapposizione a riposo.
+     Da chiuse coprono 0 → 690.5 (lo stage è alto 689, l'eccedenza è clippata):
+     nessuna fessura, nessuna riga di testo che sbuca, nemmeno con lo stage
+     scalato in anteprima (dove il subpixel arrotonda). */
+  .bar {
+    position: absolute; left: 0; right: 0;
+    top: calc(var(--i) * 76.5px);
+    height: 78.5px;
+    background: #000;
+    z-index: 2;
+    will-change: transform;
+  }
+
+  /* la firma resta sempre in vista, anche a persiana chiusa */
+  .meta { z-index: 3; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage">
+
+    <div id="board">
+      <div class="phrase"><div class="just" style="font-size:148px" data-text="Sempre Sottosopra"></div></div>
+      <div class="phrase"><div class="just" style="font-size:150px" data-text="Cambia il punto di vista"></div></div>
+    </div>
+
+    <div class="bar" style="--i:0"></div>
+    <div class="bar" style="--i:1"></div>
+    <div class="bar" style="--i:2"></div>
+    <div class="bar" style="--i:3"></div>
+    <div class="bar" style="--i:4"></div>
+    <div class="bar" style="--i:5"></div>
+    <div class="bar" style="--i:6"></div>
+    <div class="bar" style="--i:7"></div>
+    <div class="bar" style="--i:8"></div>
+
+    <div class="meta"><span>Sottosopra</span><span>Giardini del Castello</span></div>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script src="vendor/CustomEase.min.js"></script>
+<script src="_shared.js"></script>
+<script>
+LW.ready(function () {
+  var bars    = [].slice.call(document.querySelectorAll('.bar'));
+  var phrases = [].slice.call(document.querySelectorAll('.phrase'));
+  var board   = document.getElementById('board');
+  var maxH    = board.clientHeight;   /* px di layout, non scalati */
+
+  /* righe giustificate (modello poster). Se una frase lunga sfora in altezza,
+     il corpo scende quel tanto che basta e si ricostruisce: LW.justify rilegge
+     il data-text, quindi è ri-eseguibile. */
+  phrases.forEach(function (ph) {
+    ph.style.visibility = 'visible';                 /* misure affidabili */
+    var j  = ph.querySelector('.just');
+    var fs = parseFloat(getComputedStyle(j).fontSize);
+    LW.justify(j);
+    if (j.offsetHeight > maxH) {
+      j.style.fontSize = (fs * maxH / j.offsetHeight * 0.97).toFixed(1) + 'px';
+      LW.justify(j);
+    }
+    /* …e in LARGHEZZA: una parola più larga del riquadro esce dallo stage (il
+       giustificato distribuisce l'aria, non rimpicciolisce i glifi). «SOTTOSOPRA»
+       a 148px sbordava di 29px a destra. */
+    var guard = 0;
+    while (guard++ < 24) {
+      var jr = j.getBoundingClientRect(), max = 0;
+      [].slice.call(j.querySelectorAll('.wd')).forEach(function (w) {
+        var r = w.getBoundingClientRect();
+        max = Math.max(max, r.right - jr.left, jr.right - r.left ? 0 : 0);
+      });
+      if (max <= jr.width + 1) break;
+      fs = parseFloat(getComputedStyle(j).fontSize) * Math.min(0.97, (jr.width / max));
+      j.style.fontSize = fs.toFixed(1) + 'px';
+      LW.justify(j);
+    }
+    ph.style.visibility = '';                        /* torna al hidden del CSS */
+  });
+
+  var SEG = 11.4;                                    /* 2 segmenti → 22.8s */
+  var tl  = gsap.timeline({ repeat: -1 });
+
+  /* stato iniziale — ri-applicato a ogni giro: persiana CHIUSA, frase A sotto.
+     Origini alternate: stecche pari collassano verso l'alto, dispari verso il
+     basso → si aprono a coppie, come le lamelle vere. */
+  tl.set(bars,       { scaleY: 1, transformOrigin: gsap.utils.wrap(['50% 0%', '50% 100%']) }, 0);
+  tl.set(board,      { scale: 1 },            0);
+  tl.set(phrases[0], { visibility: 'visible' }, 0);
+  tl.set(phrases[1], { visibility: 'hidden' },  0);
+
+  for (var k = 0; k < 2; k++) {
+    var s = k * SEG;
+
+    /* 1 · apertura dai bordi verso il centro: le fessure alte e basse (dove non
+           c'è testo) si aprono per prime, il messaggio si scopre per ultimo */
+    tl.to(bars, { scaleY: 0, duration: 1.1, ease: 'soso',
+                  stagger: { amount: 1.4, from: 'edges' } }, s);
+
+    /* 2 · tenuta aperta ~6s: il blocco respira, mai fermo del tutto.
+           3s + 3s yoyo → torna a scale 1 esatto prima della chiusura */
+    tl.to(board, { scale: 1.012, duration: 3.0, ease: 'sine.inOut', yoyo: true, repeat: 1 }, s + 2.4);
+
+    /* 3 · chiusura dal centro verso i bordi: la frase è la prima a sparire */
+    tl.to(bars, { scaleY: 1, duration: 0.9, ease: 'power2.in',
+                  stagger: { amount: 1.2, from: 'center' } }, s + 8.4);
+
+    /* 4 · cambio frase al riparo del nero (persiana chiusa da s+10.5) */
+    tl.set(phrases[k],           { visibility: 'hidden'  }, s + 11.0);
+    tl.set(phrases[(k + 1) % 2], { visibility: 'visible' }, s + 11.0);
+  }
+
+  /* coda muta fino a 22.8s: l'ultimo frame (persiana chiusa, frase A) ≡ il primo */
+  tl.to({}, { duration: 0.4 }, 2 * SEG - 0.4);
+
+  window.TL = tl;   /* per la verifica a scrub */
+});
+</script>
+</body>
+</html>

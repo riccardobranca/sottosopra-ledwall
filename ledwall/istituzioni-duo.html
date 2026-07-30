@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<title>Sottosopra — Ledwall · Istituzioni insieme</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  /* «ISTITUZIONI INSIEME» — le due istituzioni sulla STESSA schermata, affiancate
+     e pari fra loro. Ogni ente ha la sua colonna: dicitura sopra, logo sotto,
+     un regolo verticale a dividerle. Nessuno dei due prevale sull'altro.
+     Le diciture sono riportate alla lettera (fonte: PartnerLedger del sito). */
+
+  .scene { position: absolute; inset: 44px 34px 78px; display: flex; flex-direction: column; }
+
+  .head { overflow: hidden; margin-bottom: 34px; }
+  .head .just { font-size: 68px; }
+
+  .duo {
+    flex: 1;
+    display: grid; grid-template-columns: 1fr 2px 1fr; gap: 40px;
+    align-items: stretch;
+  }
+  .divider { background: var(--line); }   /* 2px, mai 1 (sfarfalla sul LED) */
+
+  .ente { display: flex; flex-direction: column; }
+
+  /* la dicitura: sopra, con tutto lo spazio che le serve */
+  .dmask { overflow: hidden; }
+  .dic {
+    font-size: 22px; line-height: 1.5; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--muted);
+    min-height: 132px;     /* le due colonne partono dalla stessa quota anche se
+                              una dicitura è lunga e l'altra corta */
+  }
+
+  /* il logo: in basso nella colonna, centrato, mai deformato */
+  .lwrap { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .lwrap img { display: block; filter: invert(1); }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage">
+    <div class="scene">
+      <div class="head"><div class="just" data-text="Con il sostegno di"></div></div>
+
+      <div class="duo">
+        <div class="ente">
+          <div class="dmask"><div class="dic">Con il Patrocinio di</div></div>
+          <div class="lwrap">
+            <img src="logos/citta-castelfranco.png" alt="Città di Castelfranco Veneto" style="height:170px">
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="ente">
+          <div class="dmask"><div class="dic">Progetto realizzato in collaborazione e con il contributo della Camera di commercio di Treviso-Belluno</div></div>
+          <div class="lwrap">
+            <img src="logos/camera-commercio.png" alt="Camera di commercio di Treviso-Belluno" style="height:76px">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="meta"><span>Sottosopra APS</span><span>Castelfranco Veneto</span></div>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script src="vendor/CustomEase.min.js"></script>
+<script src="_shared.js"></script>
+<script>
+LW.ready(function () {
+  var headLines = LW.justify(document.querySelector('.head .just'));
+  var dics   = [].slice.call(document.querySelectorAll('.dic'));
+  var imgs   = [].slice.call(document.querySelectorAll('.lwrap img'));
+  var divider = document.querySelector('.divider');
+
+  /* i loghi non devono mai sfondare la loro colonna: se succede, si riduce
+     l'altezza (la larghezza segue — un logo istituzionale non si deforma mai) */
+  var sc = LW.stageScale() || 1;
+  imgs.forEach(function (img) {
+    var colW = img.closest('.lwrap').getBoundingClientRect().width / sc;
+    var h = parseFloat(img.style.height), guard = 0;
+    while (img.getBoundingClientRect().width / sc > colW - 8 && h > 40 && guard++ < 60) {
+      h -= 4; img.style.height = h + 'px';
+    }
+  });
+
+  var tl = gsap.timeline({ repeat: -1 });
+
+  tl.set(headLines, { yPercent: 110 });
+  tl.set(dics, { yPercent: 110 });
+  tl.set(imgs, { yPercent: 120, opacity: 0 });
+  tl.set(divider, { scaleY: 0, transformOrigin: '50% 0%' });
+
+  /* 1 · il titolo, poi il regolo che scende a dividere il campo in due */
+  tl.to(headLines, { yPercent: 0, duration: 0.85, ease: 'soso' });
+  tl.to(divider, { scaleY: 1, duration: 0.8, ease: 'soso' }, '-=0.45');
+
+  /* 2 · le due diciture insieme: nessuna delle due arriva prima dell'altra */
+  tl.to(dics, { yPercent: 0, duration: 0.85, ease: 'soso' }, '-=0.5');
+
+  /* 3 · i loghi, anche loro in coppia */
+  tl.to(imgs, { yPercent: 0, opacity: 1, duration: 0.9, ease: 'soso' }, '-=0.45');
+
+  /* 4 · tenuta lunga: la dicitura della Camera è lunga e va letta con calma */
+  tl.to('.scene', { scale: 1.006, duration: 4.0, ease: 'sine.inOut', yoyo: true, repeat: 1 });
+
+  /* 5 · uscita */
+  tl.to([dics, imgs], { yPercent: -120, opacity: 0, duration: 0.55, ease: 'power2.in', stagger: 0.05 });
+  tl.to(headLines, { yPercent: -110, duration: 0.5, ease: 'power2.in' }, '<');
+  tl.to(divider, { scaleY: 0, duration: 0.5, ease: 'power2.in', transformOrigin: '50% 100%' }, '<');
+  tl.to({}, { duration: 0.6 });
+
+  window.TL = tl;
+});
+</script>
+</body>
+</html>

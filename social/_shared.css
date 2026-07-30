@@ -1,0 +1,65 @@
+/* ── base condivisa · grafiche social Sottosopra ──
+   Fondo BIANCO (al contrario del ledwall), inchiostro nero: è la faccia del
+   brand sul feed, la stessa del sito e dei manifesti.
+   Il formato si sceglie con la classe sul body: .reel (1080×1920) o
+   .post (1080×1350). Lo stage è sempre a misura reale e viene scalato solo
+   per l'anteprima. */
+@font-face {
+  font-family: 'SoSo26';
+  src: url('fonts/SoSo26.woff2') format('woff2'), url('fonts/SoSo26.woff') format('woff');
+  font-display: block;
+}
+
+:root {
+  --bg: #fff;
+  --fg: #000;
+  --muted: #6B6B6B;   /* lo stesso grigio del sito (AA su bianco) */
+  --line: #E4E4E4;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { background: #efefef; height: 100%; overflow: hidden; }
+
+#wrap { position: fixed; inset: 0; display: grid; place-items: center; }
+
+#stage {
+  background: var(--bg); color: var(--fg);
+  font-family: 'SoSo26', sans-serif;
+  font-feature-settings: "ss07", "ss08", "liga", "calt";
+  position: relative; overflow: hidden; flex-shrink: 0;
+  transform-origin: center;
+}
+body.reel #stage { width: 1080px; height: 1920px; }
+body.post #stage { width: 1080px; height: 1350px; }
+
+/* ── titoloni giustificati (motore del sito) ── */
+.just { text-transform: uppercase; }
+.just .lnmask { display: block; overflow: hidden; }
+.just .ln { display: flex; justify-content: space-between; align-items: baseline; line-height: 1; }
+.just .ln .wd { white-space: nowrap; display: inline-block; }
+
+.label {
+  letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted);
+}
+
+/* ── la barra: il pezzo che racconta il dato ──
+   Traccia grigia + riempimento nero pieno. Angoli vivi (mai arrotondati:
+   il brand è squadrato). Il riempimento si anima in scaleX da sinistra. */
+.bar { position: relative; background: var(--line); overflow: hidden; }
+.bar .fill {
+  position: absolute; inset: 0;
+  background: var(--fg);
+  transform-origin: 0% 50%;
+  transform: scaleX(0);
+}
+
+/* safe area: le zone che l'interfaccia di Instagram copre.
+   Visibile solo con ?safe=1, per controllare che nulla di importante ci finisca. */
+.safe { position: absolute; inset: 0; pointer-events: none; display: none; }
+body.showsafe .safe { display: block; }
+.safe i {
+  position: absolute; left: 0; right: 0;
+  background: rgba(255, 0, 0, 0.14);
+  border-top: 2px dashed rgba(255, 0, 0, 0.5);
+  border-bottom: 2px dashed rgba(255, 0, 0, 0.5);
+}

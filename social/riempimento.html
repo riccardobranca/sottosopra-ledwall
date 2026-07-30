@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<title>Sottosopra — Social · Riempimento serate</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  /* «RIEMPIMENTO» — le tre serate insieme, una barra a testa.
+     La barra è il pezzo che parla: traccia grigia, riempimento nero pieno che
+     avanza da sinistra, e la percentuale che sale ESATTAMENTE con lui.
+     Tutto in un'unica colonna: si legge in un secondo, che è quanto dura uno
+     scroll. Funziona a 1080×1920 (reel) e 1080×1350 (post). */
+
+  .scene {
+    position: absolute; left: 0; right: 0;
+    display: flex; flex-direction: column;
+  }
+  /* Reel: il contenuto vivo sta dentro le fasce dell'interfaccia Instagram.
+     Post: nessuna fascia, solo un margine di rispetto. */
+  body.reel .scene { top: 250px; bottom: 440px; padding: 0 72px; }
+  body.post .scene { top: 96px;  bottom: 104px; padding: 0 72px; }
+
+  /* ── testata ── */
+  .kick { overflow: hidden; }
+  .kick span { display: block; font-size: 30px; }
+
+  .head { margin-top: 26px; }
+  .head .just { font-size: 104px; }
+  body.post .head .just { font-size: 88px; }
+
+  /* ── le tre righe ── */
+  .rows { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 0; }
+
+  .row { padding: 34px 0; border-top: 3px solid var(--line); }
+  .row:first-child { border-top: 0; }
+
+  .rowtop {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 24px; margin-bottom: 20px;
+  }
+  .when { font-size: 60px; line-height: 1; white-space: nowrap; }
+  body.post .when { font-size: 52px; }
+
+  /* la percentuale: il numero che si guarda */
+  .pctwrap { display: flex; align-items: baseline; }
+  /* altezza della finestra e delle tacche: impostate dal JS sul font-size reale
+     del rullo. Con `height: 1em` la maschera ereditava il corpo del contenitore,
+     non quello delle cifre, e si vedevano più tacche sovrapposte. */
+  .pctmask { overflow: hidden; }
+  .pct { font-size: 92px; line-height: 1; display: block; }
+  .sign { font-size: 44px; line-height: 1; margin-left: 4px; }
+  body.post .pct { font-size: 78px; }
+  body.post .sign { font-size: 38px; }
+
+  .who { font-size: 26px; margin-top: 14px; }
+
+  /* la barra */
+  .bar { height: 30px; }
+  body.post .bar { height: 26px; }
+
+  /* ── piede: logo, date, CTA ── */
+  .foot { margin-top: 30px; }
+  .foot img { display: block; width: 340px; margin-bottom: 22px; }
+  .foot .d { font-size: 27px; color: var(--fg); letter-spacing: 0.1em; text-transform: uppercase; }
+  .foot .c { font-size: 25px; margin-top: 10px; }
+  .fmask { overflow: hidden; }
+</style>
+</head>
+<body class="reel">
+<div id="wrap">
+  <div id="stage">
+    <div class="scene">
+      <div class="kick"><span class="label" id="kick">Sottosopra 2026</span></div>
+      <div class="head"><div class="just" id="head" data-text=""></div></div>
+
+      <div class="rows" id="rows"></div>
+
+      <div class="foot">
+        <div class="fmask"><img src="media/sottosopra-logo-black.png" alt="Sottosopra"></div>
+        <div class="fmask"><div class="d" id="dates"></div></div>
+        <div class="fmask"><div class="label c" id="cta"></div></div>
+      </div>
+    </div>
+
+    <!-- fasce dell'interfaccia Instagram, visibili solo con ?safe=1 -->
+    <div class="safe">
+      <i style="top:0;height:220px"></i>
+      <i style="bottom:0;height:420px"></i>
+    </div>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script src="vendor/CustomEase.min.js"></script>
+<script src="_dati.js"></script>
+<script src="_shared.js"></script>
+<script>
+SG.ready(function () {
+  SG.setTitle('#head');   /* titolo da _dati.js */
+  var D = window.DATI;
+
+  /* ── costruzione delle righe ─────────────────────────────────────────────
+     La percentuale è un RULLO di cifre in puro transform: i contatori animati
+     con onUpdate su oggetti JS non vengono renderizzati quando si salta oltre
+     la fine del conteggio (lezione del ledwall, dove restavano congelati).
+     Un transform GSAP lo applica sempre. */
+  var STEPS = 12;   /* tappe del conteggio: abbastanza per leggere una salita */
+
+  document.getElementById('rows').innerHTML = D.serate.map(function (s) {
+    var ticks = [];
+    for (var k = 1; k <= STEPS; k++) {
+      var p = k / STEPS, eased = 1 - Math.pow(1 - p, 3);   /* stessa curva della barra */
+      ticks.push(Math.max(1, Math.round(s.pct * eased)));
+    }
+    ticks[ticks.length - 1] = s.pct;                        /* l'ultima è il valore vero */
+    return '<div class="row">' +
+      '<div class="rowtop">' +
+        '<span class="when">' + s.g.toUpperCase() + ' ' + s.d + '</span>' +
+        '<span class="pctwrap">' +
+          '<span class="pctmask"><span class="pct">' +
+            ticks.map(function (v) { return '<span class="tick">' + v + '</span>'; }).join('') +
+          '</span></span>' +
+          '<span class="sign">%</span>' +
+        '</span>' +
+      '</div>' +
+      '<div class="bar"><div class="fill"></div></div>' +
+      '<div class="label who">' + s.chi + '</div>' +
+    '</div>';
+  }).join('');
+
+  /* il rullo: la finestra e le tacche sono alte esattamente il corpo delle cifre
+     (line-height 1), così se ne vede UNA per volta */
+  var rowsEl = document.getElementById('rows');
+  [].slice.call(rowsEl.querySelectorAll('.pct')).forEach(function (p) {
+    var h = Math.round(parseFloat(getComputedStyle(p).fontSize));
+    p.parentNode.style.height = h + 'px';
+    [].slice.call(p.querySelectorAll('.tick')).forEach(function (t) {
+      t.style.display = 'block';
+      t.style.height = h + 'px';
+      t.style.lineHeight = h + 'px';
+    });
+  });
+
+  document.getElementById('dates').textContent = D.date;
+  document.getElementById('cta').textContent = D.cta;
+
+  /* il titolone deve stare dentro la colonna: il giustificato distribuisce
+     l'aria ma non rimpicciolisce i glifi, quindi una riga più larga del
+     contenitore sborda. Si scende di corpo finché nessuna riga sfora. */
+  var headEl = document.getElementById('head');
+  var headLines = SG.justify(headEl);
+  (function fitHead() {
+    var sc = SG.stageScale() || 1, guard = 0;
+    while (guard++ < 30) {
+      var box = headEl.getBoundingClientRect(), over = false;
+      [].slice.call(headEl.querySelectorAll('.ln')).forEach(function (ln) {
+        var ink = [].slice.call(ln.children).reduce(function (s, k) {
+          return s + k.getBoundingClientRect().width; }, 0);
+        if (ink > box.width + 1) over = true;
+      });
+      if (!over) break;
+      var fs = parseFloat(getComputedStyle(headEl).fontSize) * 0.94;
+      headEl.style.fontSize = fs.toFixed(1) + 'px';
+      headEl.removeAttribute('data-text');
+      headEl.textContent = window.DATI.titolo;
+      headLines = SG.justify(headEl);
+    }
+  })();
+  SG.capAir(headLines);
+  headLines.forEach(function (ln) {
+    var d = SG.packDeltas(ln);
+    [].slice.call(ln.children).forEach(function (wd, i) { wd._dx = d[i] || 0; });
+  });
+  var headWds = [].slice.call(document.querySelectorAll('#head .wd'));
+
+  var rows   = [].slice.call(rowsEl.querySelectorAll('.row'));
+  var fills  = [].slice.call(rowsEl.querySelectorAll('.fill'));
+  var pcts   = [].slice.call(rowsEl.querySelectorAll('.pct'));
+  var kick   = document.getElementById('kick');
+  var footEl = [].slice.call(document.querySelectorAll('.foot .fmask > *'));
+
+  var tl = gsap.timeline({ repeat: -1 });
+
+  /* stato iniziale */
+  tl.set(kick, { yPercent: 110 });
+  tl.set(headLines, { yPercent: 110 });
+  tl.set(headWds, { x: function (i, t) { return t._dx || 0; } });
+  tl.set(rows, { opacity: 0, y: 26 });
+  tl.set(fills, { scaleX: 0 });
+  tl.set(pcts, { yPercent: 0 });
+  tl.set(footEl, { yPercent: 110 });
+
+  /* 1 · il messaggio è leggibile subito: 1,4s e il titolo c'è già
+         (nel feed si scrolla via in un secondo e mezzo) */
+  tl.to(kick, { yPercent: 0, duration: 0.5, ease: 'soso' }, 0);
+  tl.to(headLines, { yPercent: 0, duration: 0.7, ease: 'soso', stagger: 0.08 }, 0.1);
+  tl.to(headWds, { x: 0, duration: 0.9, ease: 'expo.inOut', stagger: 0.008 }, 0.45);
+
+  /* 2 · le righe arrivano, poi le barre si riempiono a cascata.
+         Barra e numero partono insieme e arrivano insieme: è la stessa durata
+         e la stessa curva (power3.out ≡ la curva con cui sono state calcolate
+         le tappe del rullo). */
+  tl.to(rows, { opacity: 1, y: 0, duration: 0.55, ease: 'power2.out', stagger: 0.1 }, 0.75);
+
+  D.serate.forEach(function (s, i) {
+    var t0 = 1.35 + i * 0.24;
+    tl.to(fills[i], { scaleX: s.pct / 100, duration: 1.25, ease: 'power3.out' }, t0);
+    tl.to(pcts[i], { yPercent: -100 * (STEPS - 1) / STEPS, duration: 1.25, ease: 'power3.out' }, t0);
+  });
+
+  /* 3 · il piede entra mentre le barre finiscono di salire */
+  tl.to(footEl, { yPercent: 0, duration: 0.6, ease: 'soso', stagger: 0.08 }, 2.1);
+
+  /* 4 · tenuta: la serata più piena respira appena — è quella da guardare */
+  var top = D.serate.reduce(function (a, s, i) { return s.pct > D.serate[a].pct ? i : a; }, 0);
+  tl.to(rows[top], { scale: 1.012, duration: 1.5, ease: 'sine.inOut',
+                     yoyo: true, repeat: 1, transformOrigin: '0% 50%' }, 3.0);
+
+  /* 5 · uscita e chiusura del ciclo: ultimo frame ≡ primo */
+  tl.to([kick].concat(footEl), { yPercent: -110, duration: 0.45, ease: 'power2.in', stagger: 0.04 }, 9.4);
+  tl.to(headLines, { yPercent: -110, duration: 0.45, ease: 'power2.in', stagger: 0.05 }, 9.4);
+  tl.to(rows, { opacity: 0, y: -22, duration: 0.45, ease: 'power2.in', stagger: 0.05 }, 9.45);
+  tl.to({}, { duration: 0.55 }, 10.0);
+  /* Solo animazione d'entrata (richiesta 2026-07-29): la grafica si compone
+     e RESTA. Le tween d'uscita vengono buttate via e il ciclo non si ripete
+     — un reel informativo deve finire sul dato leggibile, non svuotarsi. */
+  SG.noExit(tl, 9.4);
+
+
+  window.TL = tl;
+
+  /* guardiano: se il rAF è strozzato l'intro non parte e il post resta bianco */
+  setTimeout(function () { if (tl.time() < 1) tl.progress(0.4); }, 3000);
+});
+</script>
+</body>
+</html>

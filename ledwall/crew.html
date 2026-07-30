@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<title>Sottosopra — Ledwall · La crew</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  /* «LA CREW» — omaggio a chi il festival lo fa davvero.
+     Una frase sola, spezzata in tre pesi tipografici:
+       micro-label · NUMERO GIGANTE + parola · micro-label
+     UNA sola idea organizzante: il numero è un cuore, e a un certo punto batte. */
+
+  .scene { position: absolute; left: 34px; right: 34px; top: 44px; visibility: hidden; }
+
+  /* micro-righe: ognuna dentro la sua maschera (masked line reveal di collezione) */
+  .lmask { overflow: hidden; }
+  .lmask > .label { display: block; line-height: 1.4; white-space: nowrap; }
+
+  /* riga centrale: numero a filo del margine sinistro, parola nella colonna destra.
+     flex-end allinea i FONDI dei due line-box; le BASELINE le allinea il JS, perché
+     a corpi molto diversi corrisponde un "sotto-baseline" molto diverso (0.08em di
+     420px sono 34px, di 74px sono 6px: a fondo pari la parola cadrebbe 28px più giù). */
+  .mid { display: flex; align-items: flex-end; margin-top: 50px; }
+
+  .numwrap { flex: 0 0 auto; font-size: 420px; line-height: 1; } /* corpo definitivo dal JS */
+  /* padding-top + margin-top negativo = headroom di clipping SENZA muovere il layout:
+     la maschera non rischia mai di tagliare la cima dei glifi (a 420px l'overshoot
+     tipografico di un display face vale più di qualche pixel). */
+  .nmask { display: block; overflow: hidden; padding-top: 0.06em; margin-top: -0.06em; }
+  .num   { display: block; line-height: 1; }
+
+  /* flex:1 + min-width:0 = la colonna prende ESATTAMENTE lo spazio che resta:
+     con questo layout la sovrapposizione col numero è strutturalmente impossibile. */
+  .col { flex: 1 1 auto; min-width: 0; margin-left: 48px; position: relative; }
+  .col .just   { font-size: 74px; }   /* corpo definitivo dal JS (fit sulla colonna) */
+  .col .lnmask { padding-top: 0.06em; margin-top: -0.06em; }
+
+  .bot { margin-top: 40px; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage">
+
+    <div class="scene">
+      <div class="lmask top"><span class="label">Questo festival lo fanno</span></div>
+
+      <div class="mid">
+        <div class="numwrap"><span class="nmask"><span class="num">80</span></span></div>
+        <div class="col"><div class="just" data-text="Persone"></div></div>
+      </div>
+
+      <div class="lmask bot"><span class="label">Che ci mettono il tempo, le mani e la faccia</span></div>
+    </div>
+
+    <div class="meta"><span>Sottosopra APS</span><span>Unisciti a noi</span></div>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script src="vendor/CustomEase.min.js"></script>
+<script src="_shared.js"></script>
+<script>
+LW.ready(function () {
+  var stage   = document.getElementById('stage');
+  var scene   = document.querySelector('.scene');
+  var mid     = document.querySelector('.mid');
+  var numwrap = document.querySelector('.numwrap');
+  var num     = document.querySelector('.num');
+  var col     = document.querySelector('.col');
+  var just    = col.querySelector('.just');
+  var topLbl  = document.querySelector('.lmask.top > .label');
+  var botLbl  = document.querySelector('.lmask.bot > .label');
+
+  /* misure: tutto sincrono in un solo task → questo stato non viene mai dipinto */
+  scene.style.visibility = 'visible';
+  var sc = LW.stageScale() || 1;
+  function w(el) { return el.getBoundingClientRect().width / sc; }
+
+  /* ── ① metrica reale del font: dove cade la baseline dentro un line-box a
+        line-height 1. Un inline-block alto 0 appoggia il proprio bordo inferiore
+        ESATTAMENTE sulla baseline → la misura è vera, non stimata. */
+  var probe = document.createElement('div');
+  probe.style.cssText = 'position:absolute;left:-99999px;top:0;line-height:1;' +
+                        'white-space:nowrap;text-transform:uppercase;font-size:200px;';
+  probe.innerHTML = '<span style="display:inline-block;width:1px;height:0"></span>80';
+  stage.appendChild(probe);
+  var pr = probe.getBoundingClientRect();
+  var B  = (probe.firstElementChild.getBoundingClientRect().bottom - pr.top) / (pr.height || 1);
+  stage.removeChild(probe);
+  if (!(B > 0.5 && B < 1.2)) B = 0.92; /* rete di sicurezza: valore tipico del display face */
+
+  /* ── ② il numero: corpo 420, ridotto SOLO se rubasse spazio alla colonna ── */
+  var AREA = LW.W - 68, GAP = 48, COLMIN = 340, fsNum = 420;
+  var wNum = w(numwrap), maxNum = AREA - GAP - COLMIN;
+  if (wNum > maxNum) {
+    fsNum = Math.floor(fsNum * maxNum / wNum);
+    numwrap.style.fontSize = fsNum + 'px';
+  }
+
+  /* ── ③ PERSONE: lettere distribuite edge-to-edge nella colonna che resta.
+        Misuro la larghezza naturale DOPO lo split in lettere (le somme degli
+        avanzamenti non coincidono con la parola intera: niente kerning tra span). */
+  var colW = w(col);
+  just.style.fontSize = '100px';
+  LW.justify(just);
+  var lets = [].slice.call(just.querySelectorAll('.wd'));
+  var nat  = lets.reduce(function (a, s) { return a + w(s); }, 0);
+  var fsCol = Math.max(52, Math.min(96, 90 * colW / nat)); /* riempie il 90%: il 10% è l'aria nei gap */
+  just.style.fontSize = fsCol.toFixed(1) + 'px';
+
+  /* ── ④ baseline condivisa: la colonna sale della differenza di sotto-baseline ── */
+  col.style.top = (-(1 - B) * (fsNum - fsCol)).toFixed(1) + 'px';
+
+  scene.style.visibility = 'hidden';
+
+  /* ── timeline: 19.8s (griglia 0.6s) ──
+     0.0 la frase si compone · 3.2 tenuta 5.8s · 9.0 due battiti · 12.2 tenuta 5.2s
+     17.4 uscita · 18.6 nero. Ultimo frame (nero + meta) ≡ primo frame. */
+  var tl = gsap.timeline({ repeat: -1 });
+
+  /* stato iniziale — ri-applicato a ogni giro del loop */
+  tl.set(scene,   { visibility: 'visible' }, 0);
+  tl.set(mid,     { scale: 1, transformOrigin: '50% 100%' }, 0);
+  tl.set(numwrap, { scale: 1, transformOrigin: '0% 100%' }, 0);
+  tl.set([num, topLbl, botLbl], { yPercent: 110 }, 0);
+  tl.set(lets,    { yPercent: 110 }, 0);
+
+  /* ① la frase si compone nell'ordine in cui si legge */
+  tl.to(topLbl, { yPercent: 0, duration: 0.8, ease: 'soso' }, 0.0);
+  tl.to(num,    { yPercent: 0, duration: 1.1, ease: 'soso' }, 0.6);
+  tl.to(lets,   { yPercent: 0, duration: 0.8, ease: 'soso', stagger: 0.055 }, 1.2);
+  tl.to(botLbl, { yPercent: 0, duration: 0.8, ease: 'soso' }, 2.4);
+
+  /* ② tenuta: il blocco respira, mai un frame davvero fermo */
+  tl.to(mid, { scale: 1.006, duration: 2.9, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 3.2);
+
+  /* ③ il cuore: due colpi lenti dal vertice basso-sinistro (il margine resta a filo) */
+  tl.to(numwrap, { scale: 1.03, duration: 0.7, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 9.0);
+  tl.to(numwrap, { scale: 1.03, duration: 0.7, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 10.8);
+
+  /* ④ seconda tenuta, stesso respiro */
+  tl.to(mid, { scale: 1.006, duration: 2.6, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 12.2);
+
+  /* ⑤ uscita verso l'alto, dentro le maschere.
+        -120 (non -110): le maschere hanno headroom di clipping in alto, con -110 la
+        coda del glifo resterebbe a filo del bordo. */
+  tl.to(topLbl, { yPercent: -120, duration: 0.55, ease: 'power2.in' }, 17.4);
+  tl.to(num,    { yPercent: -120, duration: 0.6,  ease: 'power2.in' }, 17.55);
+  tl.to(lets,   { yPercent: -120, duration: 0.5,  ease: 'power2.in', stagger: 0.04 }, 17.7);
+  tl.to(botLbl, { yPercent: -120, duration: 0.55, ease: 'power2.in' }, 17.9);
+  tl.set(scene, { visibility: 'hidden' }, 18.6);
+
+  /* respiro nero: chiude il ciclo a 19.8s esatti */
+  tl.to({}, { duration: 1.2 }, 18.6);
+
+  window.TL = tl; /* per scrub/verifica deterministica */
+});
+</script>
+</body>
+</html>

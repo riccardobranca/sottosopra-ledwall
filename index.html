@@ -3,100 +3,54 @@
 <head>
 <meta charset="utf-8">
 <meta name="robots" content="noindex, nofollow">
-<title>Sottosopra — Ledwall · Galleria scene</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sottosopra 2026 — Grafiche</title>
 <style>
-  @font-face { font-family: 'SoSo26'; src: url('fonts/SoSo26.woff2') format('woff2'); font-display: block; }
+  @font-face { font-family: 'SoSo26'; src: url('ledwall/fonts/SoSo26.woff2') format('woff2'); font-display: block; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: #000; color: #fff; font-family: 'SoSo26', sans-serif; padding: 40px; }
-  h1 { font-size: clamp(28px, 4vw, 54px); text-transform: uppercase; font-feature-settings: "ss07","ss08","liga","calt"; margin-bottom: 6px; }
-  .sub { color: #8a8a8a; font-size: 14px; letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 34px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 22px; }
-  a.card { display: block; text-decoration: none; color: #fff; border: 2px solid #2e2e2e; }
-  .thumb { position: relative; width: 100%; aspect-ratio: 1034 / 689; overflow: hidden; background: #000; }
-  .thumb iframe {
-    width: 1034px; height: 689px; border: 0;
-    transform-origin: top left; position: absolute; top: 0; left: 0;
-    pointer-events: none;
+  body {
+    background: #fff; color: #000; font-family: 'SoSo26', sans-serif;
+    font-feature-settings: "ss07","ss08","liga","calt";
+    padding: clamp(28px, 6vw, 80px); min-height: 100vh;
   }
-  .name { display: flex; justify-content: space-between; padding: 10px 12px; font-size: 14px; letter-spacing: 0.12em; text-transform: uppercase; border-top: 2px solid #2e2e2e; }
-  .name .k { color: #8a8a8a; }
+  h1 { font-size: clamp(34px, 8vw, 92px); text-transform: uppercase; line-height: 1; }
+  .sub {
+    color: #6B6B6B; font-size: clamp(12px, 2.4vw, 15px); letter-spacing: 0.16em;
+    text-transform: uppercase; margin-top: 16px; max-width: 46ch; line-height: 1.8;
+  }
+  .cards { margin-top: clamp(40px, 8vw, 84px); display: grid; gap: 3px; background: #000; }
+  a.card {
+    display: block; background: #fff; text-decoration: none; color: #000;
+    padding: clamp(26px, 5vw, 50px);
+    transition: background 0.18s ease, color 0.18s ease;
+  }
+  a.card:hover, a.card:focus-visible { background: #000; color: #fff; }
+  a.card .n { font-size: clamp(26px, 5.6vw, 58px); text-transform: uppercase; line-height: 1; }
+  a.card .d { font-size: clamp(12px, 2.4vw, 15px); letter-spacing: 0.14em; text-transform: uppercase; margin-top: 16px; opacity: 0.6; }
+  a.card .go { font-size: clamp(12px, 2.4vw, 15px); letter-spacing: 0.14em; text-transform: uppercase; margin-top: 22px; }
+  .foot { margin-top: clamp(40px, 8vw, 86px); font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: #6B6B6B; line-height: 2.1; }
 </style>
 </head>
 <body>
-<h1>Ledwall — la collezione</h1>
-<div class="sub">1034 × 689 · clic su una scena per aprirla a grandezza piena · <a href="player.html" style="color:#fff">player.html</a> = rotazione automatica per il ledwall</div>
-<div class="grid" id="grid"></div>
-<script>
-var SCENES = [
-  /* ── primo giro ── */
-  ['titoloni.html',  'Titoloni manifesto', 'le frasi del brand'],
-  ['flip.html',      'Capovolgi',          'il gesto sottosopra'],
-  ['palco.html?day=ven', 'Sul palco stasera', 'programma del giorno'],
-  ['ribbons.html',   'Nastri partner',     '3 bande in gerarchia'],
-  ['eco.html',       'Eco tipografico',    'una riga si capovolge'],
-  ['finestre.html',  'Dentro le lettere',  'foto nelle lettere'],
-  ['marquee.html',   'Nastro gigante',     'moto continuo'],
-  ['date.html',      'Le date',            '30 31 01 02'],
-  ['contatore.html', 'Non solo concerti',  'slot machine'],
-  ['qr.html',        'Inquadra',           'QR ingresso'],
-  ['respiro.html',   'Respiro',            'la scena quieta'],
-  ['foto.html',      'Foto + wordmark',    'ken burns'],
-  /* ── secondo giro ── */
-  ['prossimo.html?day=ven&now=21:12', 'Tra poco sul palco', 'countdown reale'],
-  ['istituzioni.html', 'Istituzioni',      'patrocinio e contributo'],
-  ['splitflap.html', 'Tabellone',          'split-flap'],
-  ['zoom.html',      'Zoom infinito',      'il tunnel'],
-  ['onda.html',      'Onda di esse',       'campo tipografico'],
-  ['numeri.html',    'I numeri',           '8 · 80 · 4 · 1'],
-  ['lineup.html',    'La lineup',          'tutti i nomi'],
-  ['persiane.html',  'Persiane',           'barre che si aprono'],
-  ['serigrafia.html','Serigrafia',         'foto ad alto contrasto'],
-  ['social.html',    'Taggaci',            '@sottosoprafestival'],
-  ['crew.html',      'La crew',            '80 persone'],
-  ['notte.html',     'Ora di notte',       'orologio reale'],
-  /* ── istituzioni: varianti ── */
-  ['istituzioni-duo.html',       'Istituzioni insieme', 'le due affiancate'],
-  ['istituzioni-ledger.html',    'Istituzioni · ledger', 'a righe con regoli'],
-  ['istituzioni-manifesto.html', 'Istituzioni · manifesto', 'la dicitura è il titolo'],
-  ['istituzioni-sigillo.html',   'Istituzioni · sigillo', 'il logo si imprime'],
-  /* ── serate ── */
-  ['serate.html?day=ven',   'Le quattro serate', 'dove siamo, cosa resta'],
-  ['stasera.html?day=ven',  'Stasera',           'i nomi, giganti'],
-  ['domani.html?day=ven',   'Domani sera',       'chi c’è domani'],
-  ['restano.html?day=ven',  'Quante ne restano', 'urgenza onesta'],
-  ['gratis.html',           'Si entra gratis',   'il giovedì'],
-  ['fullpass.html',         'Un giorno non basta', 'Full Pass'],
-];
-var grid = document.getElementById('grid');
-/* src messo SOLO quando la scheda entra in vista: 24 scene animate tutte insieme
-   mettono in ginocchio anche un browser in salute (il preview si è bloccato). */
-grid.innerHTML = SCENES.map(function (s) {
-  return '<a class="card" href="' + s[0] + '">' +
-    '<div class="thumb"><iframe data-src="' + s[0] + '"></iframe></div>' +
-    '<div class="name"><span>' + s[1] + '</span><span class="k">' + s[2] + '</span></div></a>';
-}).join('');
+  <h1>Sottosopra 2026<br>Grafiche</h1>
+  <div class="sub">Anteprima interna per la scelta. Pagina non indicizzata e non collegata al sito: si arriva solo da questo link.</div>
 
-var io = new IntersectionObserver(function (entries) {
-  entries.forEach(function (e) {
-    var f = e.target.querySelector('iframe');
-    if (e.isIntersecting) {
-      if (!f.src) f.src = f.dataset.src;
-    } else if (f.src) {
-      f.removeAttribute('src');            /* fuori vista si spegne: niente rAF sprecato */
-      f.contentWindow && f.contentWindow.location.replace('about:blank');
-    }
-  });
-}, { rootMargin: '200px' });
-document.querySelectorAll('.card').forEach(function (c) { io.observe(c); });
-function scaleThumbs() {
-  document.querySelectorAll('.thumb').forEach(function (t) {
-    var f = t.querySelector('iframe');
-    f.style.transform = 'scale(' + (t.clientWidth / 1034) + ')';
-  });
-}
-addEventListener('resize', scaleThumbs);
-addEventListener('load', scaleThumbs);
-scaleThumbs();
-</script>
+  <div class="cards">
+    <a class="card" href="ledwall/">
+      <div class="n">Ledwall del palco</div>
+      <div class="d">34 scene · bianco su nero · 1034 × 689 px</div>
+      <div class="go">Guarda la collezione &rarr;</div>
+    </a>
+    <a class="card" href="social/">
+      <div class="n">Social &mdash; biglietti</div>
+      <div class="d">6 grafiche · nero su bianco · Reel e post</div>
+      <div class="go">Guarda le grafiche &rarr;</div>
+    </a>
+  </div>
+
+  <div class="foot">
+    Il ledwall è su fondo nero: sul muro i LED spenti sono nero vero.<br>
+    Le grafiche social sono su fondo bianco, come il sito e i manifesti.
+  </div>
 </body>
 </html>
