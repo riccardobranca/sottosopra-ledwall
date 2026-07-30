@@ -7,10 +7,10 @@
 <link rel="stylesheet" href="_shared.css">
 <style>
   /* «STORY · TACCHE» — la capienza si CONTA a occhio.
-     La barra è divisa in dieci blocchi uguali: ognuno è un decimo dei posti
-     della serata. Il riempimento copre i blocchi venduti, e sotto è scritto a
-     quanti posti corrisponde un blocco. Così la percentuale non è un numero
-     astratto: si vede quanti pezzi di sala sono andati.
+     La barra è divisa in dieci blocchi uguali: ognuno è un decimo della serata.
+     Il riempimento copre i blocchi venduti, così la percentuale non è un numero
+     astratto — si vede quanti pezzi di sala sono andati. Nessun totale in
+     chiaro: la capienza esatta non si dichiara.
      Variante C della prima grafica, per le storie.
      Ogni serata: data · barra muta · i nomi dei live elencati uno per riga.
      Nessuna percentuale (la barra basta), nessuna CTA (ci va lo sticker link),
@@ -108,8 +108,7 @@ SG.ready(function () {
       '</div>' +
       '<div class="bar"><div class="fill"></div>' +
         '<div class="ticks">' + '<i></i>'.repeat(10) + '</div></div>' +
-      '<div class="legenda">1 blocco = ' + Math.round(D.capienza / 10) + ' posti · ' +
-        D.capienza + ' in tutto</div>' +
+      '<div class="legenda">' + D.metrica + '</div>' +
       '<div class="live">' + s.live.map(function (n) {
         return '<div class="nmask"><div class="nm just" data-text="' + n + '"></div></div>';
       }).join('') + '</div>' +

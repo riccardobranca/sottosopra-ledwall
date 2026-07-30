@@ -3,13 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="robots" content="noindex, nofollow">
-<title>Sottosopra — Story · Su 1250 posti</title>
+<title>Sottosopra — Story · Biglietti venduti</title>
 <link rel="stylesheet" href="_shared.css">
 <style>
-  /* «STORY · SU 1250 POSTI» — come la prima, ma il dato è ESPLICITO.
-     Accanto alla percentuale ci sono i biglietti veri sul totale («650 su 1250»)
-     e la barra ha le sue etichette agli estremi: a sinistra cosa misura, a
-     destra dove finisce. Nessuno deve chiedersi «percentuale di cosa».
+  /* «STORY · BIGLIETTI VENDUTI» — come la prima, ma la barra dice cosa misura.
+     Sotto ogni riempimento c'è l'etichetta del dato. Nessun totale in chiaro:
+     la capienza esatta non si dichiara.
      Variante B della prima grafica, per le storie.
      Ogni serata: data · barra muta · i nomi dei live elencati uno per riga.
      Nessuna percentuale (la barra basta), nessuna CTA (ci va lo sticker link),
@@ -101,11 +100,10 @@ SG.ready(function () {
     return '<div class="row">' +
       '<div class="rowtop">' +
         '<span class="when">' + s.g.toUpperCase() + ' ' + s.d + ' ' + s.mese.toUpperCase() + '</span>' +
-        '<div><div class="pct">' + s.pct + '<em>%</em></div>' +
-        '<div class="abs">' + Math.round(D.capienza * s.pct / 100) + ' su ' + D.capienza + '</div></div>' +
+        '<span class="pct">' + s.pct + '<em>%</em></span>' +
       '</div>' +
       '<div class="bar"><div class="fill"></div></div>' +
-      '<div class="ends"><span>' + D.metrica + '</span><span>' + D.capienza + ' posti</span></div>' +
+      '<div class="ends"><span>' + D.metrica + '</span></div>' +
       '<div class="live">' + s.live.map(function (n) {
         return '<div class="nmask"><div class="nm just" data-text="' + n + '"></div></div>';
       }).join('') + '</div>' +
