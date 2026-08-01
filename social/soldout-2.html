@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<title>Sottosopra — Sold out · 2</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  /* «QUASI SOLD OUT» · opzione 2 — il claim è dentro un blocco NERO invertito,
+     l'unico della grafica: è lì che l'occhio cade per primo. Sopra la data,
+     sotto i nomi. L'animazione è una sola: il blocco cresce dal basso e il
+     testo dentro sale con lui. */
+
+  .scene { position: absolute; left: 0; right: 0; padding: 0 72px;
+           top: 250px; bottom: 480px; display: flex; flex-direction: column; justify-content: center; }
+
+  .kick { overflow: hidden; margin-bottom: 30px; }
+  .kick span { display: block; font-size: 40px; letter-spacing: 0.18em; text-transform: uppercase; }
+
+  /* il blocco: fondo nero, testo bianco, angoli vivi */
+  .slab { position: relative; background: var(--fg); padding: 46px 42px 54px; overflow: hidden;
+          transform: scaleY(0); transform-origin: 50% 100%; }
+  .slab .just { font-size: 124px; color: var(--bg); }
+
+  .live { margin-top: 44px; display: flex; flex-direction: column; gap: 10px; }
+  .live .nm { font-size: 50px; line-height: 1; text-transform: uppercase; display: block; }
+  .nmask { overflow: hidden; }
+
+  .foot { position: absolute; left: 72px; right: 72px; bottom: 300px;
+          display: flex; flex-direction: column; align-items: center; gap: 18px; }
+  .foot img { display: block; width: 620px; }
+  .fmask { overflow: hidden; }
+</style>
+</head>
+<body class="reel">
+<div id="wrap">
+  <div id="stage">
+    <div class="scene">
+      <div class="kick"><span id="kick"></span></div>
+      <div class="slab" id="slab"><div class="just c1" data-text="Quasi"></div><div class="just c2" data-text="Sold out"></div></div>
+      <div class="live" id="live"></div>
+    </div>
+
+    <div class="foot">
+      <div class="fmask"><img src="media/sottosopra-logo-black.png" alt="Sottosopra"></div>
+    </div>
+
+    <div class="safe">
+      <i style="top:0;height:250px"></i>
+      <i style="bottom:0;height:200px"></i>
+    </div>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script src="vendor/CustomEase.min.js"></script>
+<script src="_soldout.js"></script>
+<script src="_shared.js"></script>
+<script>
+SG.ready(function () {
+  var S = window.SOLDOUT;
+
+  document.getElementById('kick').textContent = S.giorno;
+  document.getElementById('live').innerHTML = S.live.map(function (n) {
+    return '<div class="nmask"><div class="nm just" data-text="' + n + '"></div></div>';
+  }).join('');
+
+  /* il blocco va misurato da aperto, altrimenti scaleY(0) falsa le misure */
+  var slab = document.getElementById('slab');
+  slab.style.transform = 'none';
+
+  var claimEls = [].slice.call(document.querySelectorAll('.slab .just'));
+  var lines = [];
+  claimEls.forEach(function (el) { lines = lines.concat(SG.justify(el)); });
+  /* se una delle due righe sfora, scendono INSIEME: devono restare della
+     stessa scala, sono un blocco solo */
+  var guard = 0;
+  while (guard++ < 30) {
+    var over = false;
+    claimEls.forEach(function (el) {
+      var box = el.getBoundingClientRect();
+      [].slice.call(el.querySelectorAll('.ln')).forEach(function (ln) {
+        var ink = [].slice.call(ln.children).reduce(function (a, k) {
+          return a + k.getBoundingClientRect().width; }, 0);
+        if (ink > box.width + 1) over = true;
+      });
+    });
+    if (!over) break;
+    var fs = parseFloat(getComputedStyle(claimEls[0]).fontSize) * 0.94;
+    lines = [];
+    claimEls.forEach(function (el) {
+      el.style.fontSize = fs.toFixed(1) + 'px';
+      el.removeAttribute('data-text');
+      el.textContent = el.classList.contains('c1') ? 'Quasi' : 'Sold out';
+      lines = lines.concat(SG.justify(el));
+    });
+  }
+  SG.capAir(lines, 0.5);
+
+  var nameEls = [].slice.call(document.querySelectorAll('.live .nm'));
+  var nameLines = [];
+  nameEls.forEach(function (el) { nameLines = nameLines.concat(SG.justify(el)); });
+  SG.capAir(nameLines, 0.55);
+
+  var kick = document.getElementById('kick');
+  var foot = [].slice.call(document.querySelectorAll('.foot .fmask > *'));
+
+  var tl = gsap.timeline();
+  tl.set(kick, { yPercent: 110 });
+  tl.set(slab, { scaleY: 0 });
+  tl.set(lines, { yPercent: 110 });
+  tl.set(nameLines, { yPercent: 110 });
+  tl.set(foot, { yPercent: 110 });
+
+  tl.to(kick, { yPercent: 0, duration: 0.5, ease: 'soso' }, 0);
+  /* il gesto unico: il blocco sale e il claim emerge con lui */
+  tl.to(slab, { scaleY: 1, duration: 0.75, ease: 'soso' }, 0.25);
+  tl.to(lines, { yPercent: 0, duration: 0.7, ease: 'soso', stagger: 0.08 }, 0.55);
+  tl.to(nameLines, { yPercent: 0, duration: 0.6, ease: 'soso', stagger: 0.09 }, 1.15);
+  tl.to(foot, { yPercent: 0, duration: 0.6, ease: 'soso' }, 1.5);
+
+  window.TL = tl;
+  setTimeout(function () { if (!SG.frozen && tl.time() < 1) tl.progress(1); }, 3000);
+});
+</script>
+</body>
+</html>
