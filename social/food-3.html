@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<title>Sottosopra — Food &amp; drink · 3</title>
+<link rel="stylesheet" href="_shared.css">
+<link rel="stylesheet" href="_mappa.css">
+<style>
+  /* «ANCHE SOLO PER STARE INSIEME» · opzione 3 — il taglio comunitario del brand:
+     non è un biglietto di serie B, è un modo diverso di stare al festival. */
+
+  .scene { position: absolute; left: 0; right: 0; padding: 0 72px;
+           top: 240px; bottom: 400px; display: flex; flex-direction: column; justify-content: center; }
+
+  .kick { overflow: hidden; margin-bottom: 22px; }
+  .kick span { display: block; font-size: 34px; letter-spacing: 0.18em; text-transform: uppercase; }
+
+  #claim { font-size: 106px; margin-bottom: 40px; }
+</style>
+</head>
+<body class="reel">
+<div id="wrap">
+  <div id="stage">
+    <div class="scene">
+      <div class="kick"><span id="kick"></span></div>
+      <div class="just" id="claim" data-text=""></div>
+
+      <div class="mapwrap" id="mapwrap"></div>
+      <div class="legenda" id="legenda"></div>
+      <div class="nota" id="nota"></div>
+    </div>
+
+    <div class="foot">
+      <div class="fmask"><img src="media/sottosopra-logo-black.png" alt="Sottosopra"></div>
+    </div>
+
+    <div class="safe">
+      <i style="top:0;height:250px"></i>
+      <i style="bottom:0;height:200px"></i>
+    </div>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script src="vendor/CustomEase.min.js"></script>
+<script src="_food.js"></script>
+<script src="_mappa.js"></script>
+<script src="_shared.js"></script>
+<script src="_mappa-build.js"></script>
+<script>
+SG.ready(function () {
+  FOODPAGE.build(FOOD.claim.insieme);
+});
+</script>
+</body>
+</html>
