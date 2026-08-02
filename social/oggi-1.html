@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<title>Sottosopra — Oggi · 1</title>
+<link rel="stylesheet" href="_shared.css">
+<style>
+  /* «80% DEL PARTERRE» · opzione 1 — il numero è il titolo.
+     La parola PARTERRE sta dentro il claim, quindi la zona si legge subito
+     senza bisogno di didascalie. Sotto: la barra come conferma visiva,
+     la metrica in piccolo, i live di stasera. */
+
+  .scene { position: absolute; left: 0; right: 0; padding: 0 72px;
+           top: 250px; bottom: 480px; display: flex; flex-direction: column; justify-content: center; }
+
+  .kick { overflow: hidden; margin-bottom: 26px; }
+  .kick span { display: block; font-size: 36px; letter-spacing: 0.18em; text-transform: uppercase; }
+
+  #claim { font-size: 148px; }
+
+  .bar { height: 40px; margin-top: 40px; }
+  .barlab { margin-top: 14px; font-size: 26px; letter-spacing: 0.14em;
+            text-transform: uppercase; color: var(--muted); }
+
+  .live { margin-top: 46px; display: flex; flex-direction: column; gap: 10px; }
+  .live .nm { font-size: 46px; line-height: 1; text-transform: uppercase; display: block; }
+  .nmask { overflow: hidden; }
+
+  .foot { position: absolute; left: 72px; right: 72px; bottom: 300px;
+          display: flex; flex-direction: column; align-items: center; gap: 18px; }
+  .foot img { display: block; width: 620px; }
+  .fmask { overflow: hidden; }
+</style>
+</head>
+<body class="reel">
+<div id="wrap">
+  <div id="stage">
+    <div class="scene">
+      <div class="kick"><span id="kick"></span></div>
+      <div class="just" id="claim" data-text=""></div>
+      <div class="bar"><div class="fill"></div></div>
+      <div class="barlab" id="barlab"></div>
+      <div class="live" id="live"></div>
+    </div>
+
+    <div class="foot">
+      <div class="fmask"><img src="media/sottosopra-logo-black.png" alt="Sottosopra"></div>
+    </div>
+
+    <div class="safe">
+      <i style="top:0;height:250px"></i>
+      <i style="bottom:0;height:200px"></i>
+    </div>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script src="vendor/CustomEase.min.js"></script>
+<script src="_oggi.js"></script>
+<script src="_shared.js"></script>
+<script>
+SG.ready(function () {
+  var O = window.OGGI;
+  var CLAIM = O.pct + '% del parterre';
+
+  document.getElementById('kick').textContent = O.giorno;
+  document.getElementById('barlab').textContent = O.zona + ' · ' + O.metrica;
+  document.getElementById('live').innerHTML = O.live.map(function (n) {
+    return '<div class="nmask"><div class="nm just" data-text="' + n + '"></div></div>';
+  }).join('');
+
+  var claimEl = document.getElementById('claim');
+  claimEl.setAttribute('data-text', CLAIM);
+  claimEl.textContent = CLAIM;
+  var lines = SG.justify(claimEl);
+  var guard = 0;
+  while (guard++ < 30) {
+    var box = claimEl.getBoundingClientRect(), over = false;
+    [].slice.call(claimEl.querySelectorAll('.ln')).forEach(function (ln) {
+      var ink = [].slice.call(ln.children).reduce(function (a, k) {
+        return a + k.getBoundingClientRect().width; }, 0);
+      if (ink > box.width + 1) over = true;
+    });
+    if (!over) break;
+    claimEl.style.fontSize = (parseFloat(getComputedStyle(claimEl).fontSize) * 0.94).toFixed(1) + 'px';
+    claimEl.removeAttribute('data-text');
+    claimEl.textContent = CLAIM;
+    lines = SG.justify(claimEl);
+  }
+  SG.capAir(lines);
+  lines.forEach(function (ln) {
+    var d = SG.packDeltas(ln);
+    [].slice.call(ln.children).forEach(function (wd, i) { wd._dx = d[i] || 0; });
+  });
+
+  var nameEls = [].slice.call(document.querySelectorAll('.live .nm'));
+  var nameLines = [];
+  nameEls.forEach(function (el) { nameLines = nameLines.concat(SG.justify(el)); });
+  SG.capAir(nameLines, 1);   /* i nomi restano compatti: distribuiti a lettere diventano illeggibili */
+
+  var wds  = [].slice.call(claimEl.querySelectorAll('.wd'));
+  var kick = document.getElementById('kick');
+  var fill = document.querySelector('.fill');
+  var lab  = document.getElementById('barlab');
+  var foot = [].slice.call(document.querySelectorAll('.foot .fmask > *'));
+
+  var tl = gsap.timeline();
+  tl.set(kick, { yPercent: 110 });
+  tl.set(lines, { yPercent: 110 });
+  tl.set(wds, { x: function (i, t) { return t._dx || 0; } });
+  tl.set(fill, { scaleX: 0 });
+  tl.set(lab, { opacity: 0 });
+  tl.set(nameLines, { yPercent: 110 });
+  tl.set(foot, { yPercent: 110 });
+
+  tl.to(kick, { yPercent: 0, duration: 0.5, ease: 'soso' }, 0);
+  tl.to(lines, { yPercent: 0, duration: 0.75, ease: 'soso', stagger: 0.09 }, 0.1);
+  tl.to(wds, { x: 0, duration: 0.95, ease: 'expo.inOut', stagger: 0.01 }, 0.45);
+  /* la barra arriva dopo il numero: prima si legge, poi si vede */
+  tl.to(fill, { scaleX: O.pct / 100, duration: 1.2, ease: 'power3.out' }, 0.9);
+  tl.to(lab, { opacity: 1, duration: 0.4 }, 1.5);
+  tl.to(nameLines, { yPercent: 0, duration: 0.6, ease: 'soso', stagger: 0.09 }, 1.5);
+  tl.to(foot, { yPercent: 0, duration: 0.6, ease: 'soso' }, 1.9);
+
+  window.TL = tl;
+  setTimeout(function () { if (!SG.frozen && tl.time() < 1) tl.progress(1); }, 3000);
+});
+</script>
+</body>
+</html>
