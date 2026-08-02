@@ -26,7 +26,27 @@ window.MAPPA = (function () {
      l'etichetta del palco. */
   var PARTERRE = 'M 842 292 H 1172 C 1180 430, 1206 560, 1238 648 Q 1244 668 1220 670 L 842 688 Z';
 
-  function svg() {
+  /* Le etichette delle due aree sono personalizzabili: quando la grafica non
+     ha la legenda sotto, la mappa deve dire da sola QUALE BIGLIETTO serve per
+     ciascuna zona. Struttura a due livelli — «biglietto» piccolo sopra, il
+     nome grande sotto: così l'occhio distingue le aree dalla parola che
+     cambia, non da quella che si ripete. */
+  function svg(opts) {
+    opts = opts || {};
+    var kPart = opts.kickPart || '', nPart = opts.part || 'Parterre';
+    var kFood = opts.kickFood || '', nFood = opts.food || ['Food', '&amp; drink'];
+    if (typeof nFood === 'string') nFood = [nFood];
+
+    var txtPart =
+      (kPart ? '<text class="lbl-kick lbl-blu" x="1016" y="452">' + kPart + '</text>' : '') +
+      '<text class="lbl lbl-blu" x="1016" y="' + (kPart ? 522 : 502) + '">' + nPart + '</text>';
+
+    var yF = kFood ? 430 : 470;
+    var txtFood = (kFood ? '<text class="lbl-kick lbl-red" x="530" y="' + yF + '">' + kFood + '</text>' : '') +
+      nFood.map(function (r, i) {
+        return '<text class="lbl lbl-red" x="530" y="' + ((kFood ? 500 : 470) + i * 76) + '">' + r + '</text>';
+      }).join('');
+
     return '' +
     '<svg id="mappa" viewBox="0 116 1629 1064" xmlns="http://www.w3.org/2000/svg" aria-label="Mappa dell area: in rosso l area food and drink, in azzurro l area parterre">' +
       '<defs>' +
@@ -52,15 +72,14 @@ window.MAPPA = (function () {
       '<g id="gPart">' +
         '<path class="wash wash-blu" d="' + PARTERRE + '" clip-path="url(#wipePart)"/>' +
         '<path id="parterre" class="edge edge-blu" d="' + PARTERRE + '"/>' +
-        '<text id="lblPart" class="lbl lbl-blu" x="1016" y="502">Parterre</text>' +
+        '<g id="lblPart">' + txtPart + '</g>' +
       '</g>' +
 
       /* ── evidenziatore 2 · food & drink ── */
       '<g id="gFood">' +
         '<path class="wash wash-red" d="' + FOOD + '" clip-path="url(#wipeFood)"/>' +
         '<path id="food" class="edge edge-red" d="' + FOOD + '"/>' +
-        '<text id="lblFood"  class="lbl lbl-red" x="530" y="470">Food</text>' +
-        '<text id="lblFood2" class="lbl lbl-red" x="530" y="546">&amp; drink</text>' +
+        '<g id="lblFood">' + txtFood + '</g>' +
       '</g>' +
 
       /* ── ingressi: scritti IN BIANCO dentro la strada, che è la via da cui
@@ -92,7 +111,7 @@ window.MAPPA = (function () {
     tl.set(food, { strokeDasharray: lf, strokeDashoffset: lf }, 0);
     tl.set('#wipeP', { attr: { width: 0 } }, 0);
     tl.set('#wipeR', { attr: { width: 0 } }, 0);
-    tl.set('#lblPart, #lblFood, #lblFood2', { opacity: 0 }, 0);
+    tl.set('#lblPart, #lblFood', { opacity: 0 }, 0);
 
     tl.to('#ctx > *', { opacity: 1, duration: 0.5, ease: 'power2.out', stagger: 0.07 }, t0);
     tl.to('#palcoG, #lblCast', { opacity: 1, duration: 0.4 }, t0 + 0.3);
@@ -105,7 +124,7 @@ window.MAPPA = (function () {
 
     tl.to(food, { strokeDashoffset: 0, duration: 1.0, ease: 'power2.inOut' }, t0 + 1.25);
     tl.to('#wipeR', { attr: { width: 1300 }, duration: 0.9, ease: 'power2.out' }, t0 + 1.7);
-    tl.to('#lblFood, #lblFood2', { opacity: 1, duration: 0.35, stagger: 0.06 }, t0 + 2.05);
+    tl.to('#lblFood', { opacity: 1, duration: 0.35 }, t0 + 2.05);
     tl.to('#ingr', { opacity: 1, duration: 0.4 }, t0 + 2.2);
     return tl;
   }

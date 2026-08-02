@@ -7,35 +7,38 @@
 <link rel="stylesheet" href="_shared.css">
 <link rel="stylesheet" href="_mappa.css">
 <style>
-  /* Story unica: urgenza + novità + limite + mappa + dove si compra + il P.S.
-     Sei informazioni in una story sola: la gerarchia fa tutto il lavoro —
-     un solo titolone, il resto scende di peso man mano che diventa dettaglio. */
+  /* Story unica: urgenza + novità + mappa + dove si compra.
+     Senza legenda, la mappa deve bastarsi: le etichette dentro le aree dicono
+     quale biglietto serve. Tutti i blocchi sono allineati allo stesso margine
+     e la barra nera va da bordo a bordo del contenuto. */
 
   .scene { position: absolute; left: 0; right: 0; padding: 0 72px;
-           top: 232px; bottom: 372px; display: flex; flex-direction: column; justify-content: center; }
+           top: 240px; bottom: 380px; display: flex; flex-direction: column; justify-content: center; }
 
-  .kick { overflow: hidden; margin-bottom: 20px; }
+  .kick { overflow: hidden; margin-bottom: 22px; }
   .kick span { display: block; font-size: 34px; letter-spacing: 0.18em; text-transform: uppercase; }
 
-  #claim { font-size: 92px; margin-bottom: 30px; }
+  /* 86px = il corpo a cui «Rimangono pochi / posti parterre» si compone su due
+     righe piene. Più grande fa tre righe, di cui una con una parola sola
+     distribuita a lettere: incoerente con le altre. */
+  #claim { font-size: 86px; margin-bottom: 32px; }
 
-  /* l'annuncio vero: in Inter, perché è testo da leggere */
-  .intro { font-family: 'Inter', sans-serif; font-size: 34px; line-height: 1.34;
-           letter-spacing: 0; text-transform: none; margin-bottom: 30px; }
+  /* l'annuncio: in Inter, perché è testo da leggere */
+  .intro { font-family: 'Inter', sans-serif; font-size: 35px; line-height: 1.34;
+           letter-spacing: 0; text-transform: none; margin-bottom: 34px; }
   .intro b { font-weight: 700; }
 
-  /* dove si compra: riga invertita, come le call del sito */
-  .vendita { background: var(--fg); color: var(--bg); margin-top: 22px;
-             padding: 20px 26px; font-size: 38px; letter-spacing: 0.1em;
-             text-transform: uppercase; display: flex; justify-content: space-between;
-             align-items: baseline; overflow: hidden; }
-  .vmask { overflow: hidden; }
+  /* dove si compra: riga invertita, testo distribuito edge-to-edge come le
+     righe del ledger del sito */
+  .vendita { background: var(--fg); color: var(--bg); margin-top: 30px;
+             padding: 26px 30px; overflow: hidden; }
+  .vendita .just { font-size: 52px; }
+  .vendita .just + .just { margin-top: 4px; }
 
-  .ps { font-family: 'Inter', sans-serif; font-size: 27px; line-height: 1.35;
-        letter-spacing: 0; text-transform: none; color: var(--muted); margin-top: 18px; }
+  .mapwrap { margin-bottom: 0; }
 
-  .foot { bottom: 190px; }
-  .foot img { width: 520px; }
+  .foot { bottom: 200px; }
+  .foot img { width: 540px; }
 </style>
 </head>
 <body class="reel">
@@ -47,10 +50,8 @@
       <div class="intro" id="intro"></div>
 
       <div class="mapwrap" id="mapwrap"></div>
-      <div class="legenda" id="legenda"></div>
 
-      <div class="vendita"><span class="vmask"><span id="vendita"></span></span></div>
-      <div class="ps" id="ps"></div>
+      <div class="vendita" id="vendita"></div>
     </div>
 
     <div class="foot">
@@ -75,43 +76,84 @@ SG.ready(function () {
 
   document.getElementById('kick').textContent = G.giorno;
   document.getElementById('intro').innerHTML = G.intro;
-  document.getElementById('mapwrap').innerHTML = MAPPA.svg();
-  document.getElementById('vendita').innerHTML = G.vendita;
-  document.getElementById('ps').innerHTML = G.ps;
-  document.getElementById('legenda').innerHTML = G.legenda.map(function (r) {
-    return '<div class="lr"><span class="sw ' + r[0] + '"></span>' +
-           '<span class="t">' + r[1] + '</span>' +
-           '<span class="k">' + r[2] + '</span></div>';
-  }).join('');
+  document.getElementById('mapwrap').innerHTML = MAPPA.svg(G.mappa);
 
-  /* claim giustificato, con rientro di corpo se sfora in larghezza */
-  var el = document.getElementById('claim');
-  el.setAttribute('data-text', G.claim);
-  el.textContent = G.claim;
-  var lines = SG.justify(el), guard = 0;
-  while (guard++ < 30) {
-    var box = el.getBoundingClientRect(), over = false;
-    [].slice.call(el.querySelectorAll('.ln')).forEach(function (ln) {
-      var ink = [].slice.call(ln.children).reduce(function (a, k) {
-        return a + k.getBoundingClientRect().width; }, 0);
-      if (ink > box.width + 1) over = true;
-    });
-    if (!over) break;
-    el.style.fontSize = (parseFloat(getComputedStyle(el).fontSize) * 0.94).toFixed(1) + 'px';
-    el.removeAttribute('data-text');
-    el.textContent = G.claim;
-    lines = SG.justify(el);
+  /* giustifica un blocco e, se una riga sfora, scende di corpo finché entra */
+  function componi(el, testo, passo) {
+    el.setAttribute('data-text', testo);
+    el.textContent = testo;
+    var lines = SG.justify(el), guard = 0;
+    while (guard++ < 30) {
+      var box = el.getBoundingClientRect(), over = false;
+      [].slice.call(el.querySelectorAll('.ln')).forEach(function (ln) {
+        var ink = [].slice.call(ln.children).reduce(function (a, k) {
+          return a + k.getBoundingClientRect().width; }, 0);
+        if (ink > box.width + 1) over = true;
+      });
+      if (!over) break;
+      el.style.fontSize = (parseFloat(getComputedStyle(el).fontSize) * (passo || 0.94)).toFixed(1) + 'px';
+      el.removeAttribute('data-text');
+      el.textContent = testo;
+      lines = SG.justify(el);
+    }
+    SG.capAir(lines);
+    return lines;
   }
-  SG.capAir(lines);
+
+  var el = document.getElementById('claim');
+  var lines = componi(el, G.claim);
+
+  /* la riga della cassa: un blocco giustificato per riga, così ognuna riempie
+     la barra da bordo a bordo e nessuna parola resta orfana */
+  var vBox = document.getElementById('vendita');
+  vBox.innerHTML = G.vendita.map(function () { return '<div class="just"></div>'; }).join('');
+  var vEls = [].slice.call(vBox.querySelectorAll('.just'));
+  var vLines = [];
+  function componiVendita() {
+    vLines = [];
+    vEls.forEach(function (e, i) {
+      e.removeAttribute('data-text');
+      e.textContent = G.vendita[i];
+      vLines = vLines.concat(SG.justify(e));
+    });
+  }
+  componiVendita();
+  /* il corpo cresce finché la riga più lunga riempie il 92% della barra: sotto
+     quella densità il giustificato lascia le righe visibilmente diverse fra
+     loro (una compatta e una distribuita) e la barra sembra sbilanciata */
+  (function riempi() {
+    var guard = 0;
+    while (guard++ < 30) {
+      var max = 0, sfora = false;
+      vLines.forEach(function (ln) {
+        var ink = [].slice.call(ln.children).reduce(function (a, k) {
+          return a + k.getBoundingClientRect().width; }, 0);
+        var r = ink / ln.getBoundingClientRect().width;
+        if (r > max) max = r;
+        if (r > 1) sfora = true;
+      });
+      if (sfora || vLines.length > G.vendita.length) {   /* troppo grande: si torna indietro e si esce */
+        vEls.forEach(function (e) {
+          e.style.fontSize = (parseFloat(getComputedStyle(e).fontSize) * 0.96).toFixed(1) + 'px'; });
+        componiVendita();
+        break;
+      }
+      if (max >= 0.92) break;
+      vEls.forEach(function (e) {
+        e.style.fontSize = (parseFloat(getComputedStyle(e).fontSize) * 1.04).toFixed(1) + 'px'; });
+      componiVendita();
+    }
+    SG.capAir(vLines, 0.45);   /* soglia bassa: qui vogliamo entrambe distribuite */
+  })();
 
   /* se sfora in ALTEZZA si stringe il claim: la mappa non si tocca */
   var scene = document.querySelector('.scene'), sc = SG.stageScale() || 1, g2 = 0;
   while (g2++ < 20) {
     var need = 0;
     [].slice.call(scene.children).forEach(function (c) {
+      var cs = getComputedStyle(c);
       need += c.getBoundingClientRect().height / sc;
-      need += parseFloat(getComputedStyle(c).marginBottom) || 0;
-      need += parseFloat(getComputedStyle(c).marginTop) || 0;
+      need += (parseFloat(cs.marginBottom) || 0) + (parseFloat(cs.marginTop) || 0);
     });
     if (need <= scene.getBoundingClientRect().height / sc) break;
     el.style.fontSize = (parseFloat(getComputedStyle(el).fontSize) * 0.93).toFixed(1) + 'px';
@@ -126,42 +168,35 @@ SG.ready(function () {
     [].slice.call(ln.children).forEach(function (wd, i) { wd._dx = d[i] || 0; });
   });
 
-  var wds  = [].slice.call(el.querySelectorAll('.wd'));
-  var kick = document.getElementById('kick');
+  var wds   = [].slice.call(el.querySelectorAll('.wd'));
+  var kick  = document.getElementById('kick');
   var intro = document.getElementById('intro');
-  var lr   = [].slice.call(document.querySelectorAll('.legenda .lr'));
-  var vend = document.querySelector('.vendita');
-  var vtxt = document.getElementById('vendita');
-  var ps   = document.getElementById('ps');
-  var foot = [].slice.call(document.querySelectorAll('.foot .fmask > *'));
+  var vend  = document.querySelector('.vendita');
+  var foot  = [].slice.call(document.querySelectorAll('.foot .fmask > *'));
 
   var tl = gsap.timeline();
   tl.set(kick, { yPercent: 110 });
   tl.set(lines, { yPercent: 110 });
   tl.set(wds, { x: function (i, t) { return t._dx || 0; } });
   tl.set(intro, { opacity: 0, y: 14 });
-  tl.set(lr, { opacity: 0, x: -14 });
   tl.set(vend, { scaleX: 0, transformOrigin: '0% 50%' });
-  tl.set(vtxt, { opacity: 0 });
-  tl.set(ps, { opacity: 0 });
+  tl.set(vLines, { yPercent: 110 });
   tl.set(foot, { yPercent: 110 });
 
   tl.to(kick, { yPercent: 0, duration: 0.5, ease: 'soso' }, 0);
   tl.to(lines, { yPercent: 0, duration: 0.7, ease: 'soso', stagger: 0.08 }, 0.1);
   tl.to(wds, { x: 0, duration: 0.9, ease: 'expo.inOut', stagger: 0.01 }, 0.4);
-  tl.to(intro, { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' }, 0.85);
+  tl.to(intro, { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' }, 0.9);
 
-  MAPPA.anima(tl, 1.25);   /* la mappa chiude a 1.25 + 2.6 = 3.85 */
+  MAPPA.anima(tl, 1.3);   /* la mappa chiude a 1.3 + 2.6 = 3.9 */
 
-  tl.to(lr, { opacity: 1, x: 0, duration: 0.45, ease: 'power2.out', stagger: 0.09 }, 3.9);
-  /* la riga «dove si compra» si apre come una barra: è l'ultima azione */
-  tl.to(vend, { scaleX: 1, duration: 0.6, ease: 'soso' }, 4.15);
-  tl.to(vtxt, { opacity: 1, duration: 0.35 }, 4.5);
-  tl.to(ps, { opacity: 1, duration: 0.45 }, 4.7);
-  tl.to(foot, { yPercent: 0, duration: 0.6, ease: 'soso' }, 4.85);
+  /* la riga della cassa si apre come una barra: è l'ultima azione */
+  tl.to(vend, { scaleX: 1, duration: 0.6, ease: 'soso' }, 4.0);
+  tl.to(vLines, { yPercent: 0, duration: 0.5, ease: 'soso' }, 4.35);
+  tl.to(foot, { yPercent: 0, duration: 0.6, ease: 'soso' }, 4.6);
 
   window.TL = tl;
-  setTimeout(function () { if (!SG.frozen && tl.time() < 1) tl.progress(1); }, 6200);
+  setTimeout(function () { if (!SG.frozen && tl.time() < 1) tl.progress(1); }, 6000);
 });
 </script>
 </body>

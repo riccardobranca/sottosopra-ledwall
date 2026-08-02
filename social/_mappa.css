@@ -37,7 +37,9 @@
 /* etichette */
 #mappa text { font-family: 'SoSo26', sans-serif; text-transform: uppercase;
               text-anchor: middle; letter-spacing: 0.06em; }
-#mappa .lbl     { font-size: 56px; }
+#mappa .lbl      { font-size: 52px; }   /* 56 faceva toccare i bordi a «GIARDINO» dentro il ramo stretto */
+/* «biglietto» sopra il nome: piccolo e spaziato, fa da occhiello */
+#mappa .lbl-kick { font-size: 30px; letter-spacing: 0.2em; }
 #mappa .lbl-blu { fill: #1C5C93; }
 #mappa .lbl-red { fill: #A82D1C; }
 #mappa .lbl-ctx { font-size: 46px; fill: var(--fg); letter-spacing: 0.14em; }
