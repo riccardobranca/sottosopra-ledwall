@@ -1,41 +1,59 @@
 /* ── stili condivisi delle story «food & drink» ──
-   La mappa vive in B/N puro: il contesto è grigio chiaro e non deve mai
-   competere con le due aree. L'unica campitura nera è l'area del nuovo
-   biglietto: è lei che deve saltare all'occhio. */
+   La mappa è l'unico punto della grafica in cui entra il colore: serve a
+   codificare due zone diverse, non a decorare. Due pastelli soltanto,
+   azzurro e rosso, usati come evidenziatori sopra una planimetria B/N. */
 @font-face {
   font-family: 'Inter';
   src: url('fonts/Inter.woff2') format('woff2');
   font-display: swap;
 }
 
+:root {
+  --blu:      #3183C4;   /* tratto parterre */
+  --blu-wash: #A9D6F2;   /* campitura parterre — pastello, non satura */
+  --red:      #DC4E38;   /* tratto food & drink */
+  --red-wash: #F8BAAE;   /* campitura food & drink */
+}
+
 .mapwrap { margin: 0 0 26px; }
 #mappa { width: 100%; height: auto; display: block; }
 
-/* contesto: edifici e strada */
-#mappa .ed     { fill: #E4E4E4; }
-#mappa .strada { fill: none; stroke: #E4E4E4; stroke-width: 113; }
+/* il costruito: pieni neri, come sulla planimetria */
+#mappa .ed     { fill: var(--fg); }
+#mappa .strada { fill: none; stroke: var(--fg); stroke-width: 113;
+                 stroke-linecap: butt; }
+#mappa .palco  { fill: var(--fg); }
 
-/* le due aree */
-#mappa #food     { fill: var(--fg); }
-#mappa #parterre { fill: var(--bg); stroke: var(--fg); stroke-width: 7;
-                   stroke-linejoin: round; }
-#mappa .palco    { fill: var(--fg); }
+/* gli evidenziatori: la campitura in multiply sparisce sopra il nero
+   (come un pennarello vero), il contorno invece passa sopra tutto */
+#mappa .wash      { mix-blend-mode: multiply; }
+#mappa .wash-blu  { fill: var(--blu-wash); }
+#mappa .wash-red  { fill: var(--red-wash); }
+#mappa .edge      { fill: none; stroke-width: 7; stroke-linejoin: round;
+                    stroke-linecap: round; }
+#mappa .edge-blu  { stroke: var(--blu); }
+#mappa .edge-red  { stroke: var(--red); }
 
-/* etichette: SoSo26 come tutto il resto del brand */
+/* etichette */
 #mappa text { font-family: 'SoSo26', sans-serif; text-transform: uppercase;
-              text-anchor: middle; letter-spacing: 0.08em; }
-#mappa .lbl      { font-size: 62px; fill: var(--fg); }
-/* «parterre» è lunga e l'area è stretta: sta dentro solo a corpo ridotto */
-#mappa .lbl-s    { font-size: 53px; letter-spacing: 0.04em; }
-#mappa .lbl-neg  { fill: var(--bg); }
-#mappa .lbl-ctx  { font-size: 48px; fill: #9A9A9A; }
+              text-anchor: middle; letter-spacing: 0.06em; }
+#mappa .lbl     { font-size: 56px; }
+#mappa .lbl-blu { fill: #1C5C93; }
+#mappa .lbl-red { fill: #A82D1C; }
+#mappa .lbl-ctx { font-size: 46px; fill: var(--fg); letter-spacing: 0.14em; }
+#mappa .lbl-neg { fill: var(--bg); }
+/* gli ingressi stanno DENTRO la strada nera: bianchi */
+#mappa .lbl-in  { font-size: 40px; fill: var(--bg); letter-spacing: 0.18em;
+                  font-family: 'Inter', sans-serif; text-transform: uppercase; }
+#mappa .arrow   { fill: none; stroke: var(--bg); stroke-width: 9;
+                  stroke-linecap: round; stroke-linejoin: round; }
 
-/* legenda: due righe, il quadratino ripete esattamente la resa della mappa */
+/* legenda: i quadratini ripetono esattamente la resa della mappa */
 .legenda { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
 .legenda .lr { display: flex; align-items: center; gap: 16px; }
-.legenda .sw { width: 34px; height: 34px; flex: 0 0 auto; }
-.legenda .sw.food { background: var(--fg); }
-.legenda .sw.part { background: var(--bg); border: 4px solid var(--fg); }
+.legenda .sw { width: 34px; height: 34px; flex: 0 0 auto; border: 4px solid; }
+.legenda .sw.food { background: var(--red-wash); border-color: var(--red); }
+.legenda .sw.part { background: var(--blu-wash); border-color: var(--blu); }
 .legenda .t { font-size: 30px; letter-spacing: 0.12em; text-transform: uppercase; }
 .legenda .k { font-size: 30px; letter-spacing: 0.12em; text-transform: uppercase;
               color: var(--muted); margin-left: auto; }

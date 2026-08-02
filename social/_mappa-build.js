@@ -78,12 +78,14 @@ window.FOODPAGE = (function () {
 
     MAPPA.anima(tl, 0.8);
 
-    tl.to(lr, { opacity: 1, x: 0, duration: 0.45, ease: 'power2.out', stagger: 0.09 }, 2.55);
-    tl.to(nota, { opacity: 1, duration: 0.5 }, 2.8);
-    tl.to(foot, { yPercent: 0, duration: 0.6, ease: 'soso' }, 3.0);
+    /* legenda e nota entrano DOPO che la mappa ha finito di comporsi
+       (i due evidenziatori chiudono a 3.4): prima si guarda, poi si legge */
+    tl.to(lr, { opacity: 1, x: 0, duration: 0.45, ease: 'power2.out', stagger: 0.09 }, 3.45);
+    tl.to(nota, { opacity: 1, duration: 0.5 }, 3.7);
+    tl.to(foot, { yPercent: 0, duration: 0.6, ease: 'soso' }, 3.9);
 
     window.TL = tl;
-    setTimeout(function () { if (!SG.frozen && tl.time() < 1) tl.progress(1); }, 4200);
+    setTimeout(function () { if (!SG.frozen && tl.time() < 1) tl.progress(1); }, 5200);
     return tl;
   }
 
